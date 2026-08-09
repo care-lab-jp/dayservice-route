@@ -11,7 +11,7 @@ import { getApiKey, hasGoogleKey } from '../lib/travelProvider';
 import { resolveMapId } from '../lib/tenant';
 import { decodePolyline } from '../lib/googleRoutes';
 import { makeError, type ApiError } from '../lib/apiErrors';
-import { getMapsAuthFailure, loadMapsJs } from '../lib/mapsLoader';
+import { getMapsAuthFailure, importMapsLibrary, loadMapsJs } from '../lib/mapsLoader';
 import { apiStatus } from '../lib/apiStatus';
 import type { LatLng, TrafficInterval } from '../types';
 
@@ -66,8 +66,11 @@ export default function MapView({
         if (authFailed) { setError(authFailed); return; }
 
         const g = window.google;
-        const { Map } = await g.maps.importLibrary('maps');
-        const { AdvancedMarkerElement } = await g.maps.importLibrary('marker');
+        const { Map } = await importMapsLibrary('maps');
+        const { AdvancedMarkerElement } = await importMapsLibrary('marker');
+        if (typeof Map !== 'function' || typeof AdvancedMarkerElement !== 'function') {
+          throw makeError('NETWORK', '地図ライブラリを読み込めませんでした');
+        }
         if (cancelled || !ref.current) return;
 
         if (!mapRef.current) {

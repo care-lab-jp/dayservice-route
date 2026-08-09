@@ -15,7 +15,7 @@ import { dummyTravelMinutes, haversineKm, isSameSpot } from './geo';
 import { classifyGeocodeStatus, classifyRestError, classifyThrown, makeError, type ApiError } from './apiErrors';
 import { apiStatus } from './apiStatus';
 import { resolveApiKey } from './tenant';
-import { loadMapsJs } from './mapsLoader';
+import { importMapsLibrary, loadMapsJs } from './mapsLoader';
 
 export type TravelSource = 'google' | 'dummy';
 
@@ -342,9 +342,10 @@ async function geocodeViaMapsJs(address: string, key: string): Promise<GeocodeRe
   await loadMapsJs(key);
   const g = (window as any).google;
   if (!g?.maps) return null;
-  await g.maps.importLibrary('geocoding');
+  const { Geocoder } = await importMapsLibrary('geocoding');
+  if (typeof Geocoder !== 'function') return null;
 
-  const geocoder = new g.maps.Geocoder();
+  const geocoder = new Geocoder();
   let response: any;
   try {
     response = await geocoder.geocode({ address, language: 'ja', region: 'JP' });
