@@ -114,7 +114,9 @@ export default function RouteCreate() {
           <h2 className="text-2xl font-bold mb-3">車両</h2>
           <select className="field text-xl" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
             {vehicles.map((v) => (
-              <option key={v.id} value={v.id}>{v.name}（定員{v.capacity}名{v.wheelchair ? '・車いす可' : ''}）</option>
+              <option key={v.id} value={v.id}>
+                {v.name}（定員{v.capacity}名{v.wheelchair ? '・車いす可' : ''}）{v.active ? '' : '｜停止中'}
+              </option>
             ))}
           </select>
           {fitIssues.map((f) => (

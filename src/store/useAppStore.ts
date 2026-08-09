@@ -28,6 +28,9 @@ interface AppState {
   addMember: (m: Member) => void;
   updateMember: (id: string, m: Partial<Member>) => void;
   removeMember: (id: string) => void;
+  addVehicle: (v: Vehicle) => void;
+  updateVehicle: (id: string, v: Partial<Vehicle>) => void;
+  removeVehicle: (id: string) => void;
   toggleSelected: (id: string) => void;
   setSelected: (ids: string[]) => void;
   setDepartTime: (t: string) => void;
@@ -48,6 +51,7 @@ interface AppState {
 }
 
 export const newMemberId = () => 'm-' + Math.random().toString(36).slice(2, 9);
+export const newVehicleId = () => 'car-' + Math.random().toString(36).slice(2, 9);
 
 const sampleState = () => ({
   facility: { ...sampleFacility, tenantId: useTenantStore.getState().currentId },
@@ -77,6 +81,20 @@ export const useAppStore = create<AppState>()(
           members: s.members.filter((m) => m.id !== id),
           selectedIds: s.selectedIds.filter((x) => x !== id),
         })),
+      addVehicle: (v) => set((s) => ({ vehicles: [...s.vehicles, v] })),
+      updateVehicle: (id, patch) =>
+        set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, ...patch } : v)) })),
+      removeVehicle: (id) =>
+        set((s) => {
+          // 最後の1台は削除させない（車両が0台だとルートを作れなくなるため）
+          if (s.vehicles.length <= 1) return {};
+          const vehicles = s.vehicles.filter((v) => v.id !== id);
+          return {
+            vehicles,
+            vehicleId: s.vehicleId === id ? (vehicles.find((v) => v.active) ?? vehicles[0]).id : s.vehicleId,
+          };
+        }),
+
       toggleSelected: (id) =>
         set((s) => ({
           selectedIds: s.selectedIds.includes(id)

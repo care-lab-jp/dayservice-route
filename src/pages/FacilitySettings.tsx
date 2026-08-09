@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  useAppStore, switchTenant, exportCurrentTenant, importCurrentTenant, inspectBackup,
+  newVehicleId, useAppStore, switchTenant, exportCurrentTenant, importCurrentTenant, inspectBackup,
   undoImport, wipeCurrentTenant, ImportError,
 } from '../store/useAppStore';
 import { useTenantStore } from '../lib/tenant';
@@ -12,7 +12,8 @@ import { useApiStatus } from '../lib/apiStatus';
 import { clearMatrixCache } from '../lib/planner';
 
 export default function FacilitySettings() {
-  const { facility, setFacility, resetToSample } = useAppStore();
+  const { facility, setFacility, resetToSample, vehicles, addVehicle, updateVehicle, removeVehicle } =
+    useAppStore();
   const { mode, lastError, lastSuccess } = useApiStatus();
   const { tenants, currentId, current, addTenant, updateTenant, removeTenant } = useTenantStore();
   const tenant = current();
@@ -106,6 +107,83 @@ export default function FacilitySettings() {
         </div>
         <p className="text-gray-500">
           送迎開始地点・終了地点は未設定の場合、施設の座標が使われます（施設 → 利用者宅巡回 → 施設）。
+        </p>
+      </div>
+
+      {/* ---------------- 車両 ---------------- */}
+      <div className="card space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-2xl font-bold">車両（{vehicles.length}台）</h2>
+          <button className="btn-sub btn-sm sm:ml-auto"
+            onClick={() =>
+              addVehicle({
+                id: newVehicleId(),
+                name: `車両${String.fromCharCode(65 + vehicles.length)}`,
+                capacity: 8,
+                wheelchair: false,
+                active: true,
+              })
+            }>
+            ＋ 車両を追加
+          </button>
+        </div>
+        <p className="text-gray-600">
+          定員を超える人数を選んだときや、車いすの方が非対応車両に含まれるときは、
+          ルート作成画面で警告が出ます。
+        </p>
+
+        <div className="space-y-3">
+          {vehicles.map((v) => (
+            <div key={v.id} className="rounded-2xl border-2 border-gray-200 p-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="label">車両名</label>
+                  <input className="field" value={v.name}
+                    onChange={(e) => updateVehicle(v.id, { name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">定員（名）</label>
+                  <input className="field" type="number" min={1} max={30} value={v.capacity}
+                    onChange={(e) =>
+                      updateVehicle(v.id, { capacity: Math.max(1, Number(e.target.value) || 1) })
+                    } />
+                </div>
+                <div>
+                  <label className="label">車いす対応</label>
+                  <select className="field" value={v.wheelchair ? '1' : '0'}
+                    onChange={(e) => updateVehicle(v.id, { wheelchair: e.target.value === '1' })}>
+                    <option value="0">非対応</option>
+                    <option value="1">対応</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={'badge ' + (v.active ? 'bg-accentSoft text-accent' : 'bg-gray-100 text-gray-500')}>
+                  {v.active ? '稼働中' : '停止中'}
+                </span>
+                <div className="w-full sm:w-auto sm:ml-auto flex gap-2">
+                  <button className="btn-sub btn-sm flex-1 sm:flex-none"
+                    onClick={() => updateVehicle(v.id, { active: !v.active })}>
+                    {v.active ? '停止にする' : '稼働にする'}
+                  </button>
+                  <button className="btn-danger btn-sm flex-1 sm:flex-none"
+                    disabled={vehicles.length <= 1}
+                    title={vehicles.length <= 1 ? '車両は1台以上必要です' : ''}
+                    onClick={() => {
+                      if (confirm(`${v.name}を削除します。よろしいですか？\n作成済みの送迎表がある場合は作り直しが必要になります。`)) {
+                        removeVehicle(v.id);
+                      }
+                    }}>
+                    削除
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-gray-500">
+          複数台を「稼働中」にすると、利用者が定員と車いす対応をもとに自動で振り分けられ、
+          ルート結果に車両ごとのタブが表示されます。
         </p>
       </div>
 
