@@ -8,7 +8,10 @@
 ![tests](https://img.shields.io/badge/tests-83%20passing-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
+**▶ すぐ試す： https://care-lab-jp.github.io/dayservice-route/**
+
 **Google Maps の APIキーが無くても、そのまま動きます**（デモモード：推定移動時間＋簡易マップ）。
+公開版もデモモードで起動するため、APIキーなしで一通りの操作を体験できます。
 
 ---
 
@@ -24,7 +27,18 @@
 
 ---
 
-## 1. 起動方法
+## 0. 公開版について
+
+GitHub Pages で公開しています。**すべてブラウザ内で完結**し、入力した利用者情報が
+サーバーへ送られることはありません（データはお使いのブラウザにのみ保存されます）。
+
+実際の送迎業務でお使いになる場合は、施設ご自身のGoogle Cloudプロジェクトで
+APIキーを作成し、アプリの「施設設定」画面から登録してください
+（[GOOGLE_MAPS_SETUP.md](./GOOGLE_MAPS_SETUP.md)）。
+
+---
+
+## 1. 起動方法（ローカル開発）
 
 ```bash
 cd dayservice-route
