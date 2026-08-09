@@ -6,7 +6,8 @@ import {
 import NumberInput from '../components/NumberInput';
 import { isValidZip, tryLookupPostalCode } from '../lib/postalCode';
 import { useTenantStore } from '../lib/tenant';
-import { getEnvApiKey, hasGoogleKey } from '../lib/travelProvider';
+import { geocodeAddress, getEnvApiKey, hasGoogleKey } from '../lib/travelProvider';
+import type { ApiError } from '../lib/apiErrors';
 import {
   clearTenantKey, getTenantKey, isKeyPersisted, looksLikeApiKey, maskKey, setTenantKey,
 } from '../lib/keyVault';
@@ -25,6 +26,38 @@ export default function FacilitySettings() {
   const memberCount = useAppStore((s) => s.members.length);
   const [includeHistory, setIncludeHistory] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const [geoMsg, setGeoMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  /** 施設の住所 -> 緯度経度（Googleへ送るのは住所文字列のみ） */
+  const lookupFacility = async () => {
+    if (!facility.address.trim()) {
+      setGeoMsg({ ok: false, text: '先に住所を入力してください' });
+      return;
+    }
+    setGeoBusy(true);
+    setGeoMsg(null);
+    try {
+      const r = await geocodeAddress(facility.address);
+      setFacility({ lat: r.lat, lng: r.lng });
+      clearMatrixCache();
+      setGeoMsg({
+        ok: true,
+        text:
+          r.candidates.length > 1
+            ? `候補が${r.candidates.length}件ありました。1件目を設定しています：${r.formattedAddress}`
+            : `座標を取得しました：${r.formattedAddress}`,
+      });
+    } catch (e) {
+      const err = e as ApiError;
+      setGeoMsg({
+        ok: false,
+        text: `${err?.message ?? '座標を取得できませんでした'} ${err?.hint ?? ''}`,
+      });
+    } finally {
+      setGeoBusy(false);
+    }
+  };
 
   const doSwitch = async (id: string) => {
     const t = tenants.find((x) => x.id === id);
@@ -96,7 +129,26 @@ export default function FacilitySettings() {
           </div>
           <div className="sm:col-span-2">
             <label className="label">住所</label>
-            <input className="field" value={facility.address} onChange={(e) => setFacility({ address: e.target.value })} />
+            <div className="flex gap-2">
+              <input className="field" value={facility.address}
+                onChange={(e) => setFacility({ address: e.target.value })} />
+              <button className="btn-sub whitespace-nowrap"
+                disabled={!hasGoogleKey() || geoBusy}
+                title={hasGoogleKey() ? '' : 'Google Maps APIキー未設定のため利用できません'}
+                onClick={lookupFacility}>
+                {geoBusy ? '検索中…' : '住所から座標'}
+              </button>
+            </div>
+            {geoMsg && (
+              <p className={'mt-2 ' + (geoMsg.ok ? 'text-accent' : 'text-warn font-bold')}>
+                {geoMsg.ok ? '✓ ' : '⚠ '}{geoMsg.text}
+              </p>
+            )}
+            {!hasGoogleKey() && (
+              <p className="mt-2 text-gray-500">
+                デモモードのため住所検索は使えません。緯度・経度を直接入力してください。
+              </p>
+            )}
           </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
