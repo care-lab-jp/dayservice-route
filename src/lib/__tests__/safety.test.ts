@@ -377,3 +377,48 @@ describe('補足：車両とデモ表示', () => {
     expect(vehicle({ id: 'car-a', name: '車両A' }).capacity).toBe(8);
   });
 });
+
+/* ------------------------------------------------------------------ */
+describe('16 郵便番号', () => {
+  it('全角・ハイフン・〒つきでも7桁に正規化できる', async () => {
+    const { normalizeZip, formatZip, isValidZip } = await import('../postalCode');
+    expect(normalizeZip('600-8216')).toBe('6008216');
+    expect(normalizeZip('〒600-8216')).toBe('6008216');
+    expect(normalizeZip('６００８２１６')).toBe('6008216');
+    expect(formatZip('6008216')).toBe('600-8216');
+    expect(isValidZip('600-821')).toBe(false);
+    expect(isValidZip('600-8216')).toBe(true);
+  });
+
+  it('桁数が足りなければAPIを呼ばずに失敗する', async () => {
+    const { lookupPostalCode } = await import('../postalCode');
+    await expect(lookupPostalCode('600')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('該当なしのときは分かりやすいエラーになる', async () => {
+    const { tryLookupPostalCode } = await import('../postalCode');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 200, message: null, results: null }),
+    }));
+    const { result, error } = await tryLookupPostalCode('0000000');
+    expect(result).toBeNull();
+    expect(error?.code).toBe('NOT_FOUND');
+    vi.unstubAllGlobals();
+  });
+
+  it('住所を連結して返す', async () => {
+    const { lookupPostalCode } = await import('../postalCode');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 200,
+        results: [{ address1: '京都府', address2: '京都市下京区', address3: '東塩小路町' }],
+      }),
+    }));
+    const r = await lookupPostalCode('600-8216');
+    expect(r.address).toBe('京都府京都市下京区東塩小路町');
+    expect(r.formattedZip).toBe('600-8216');
+    vi.unstubAllGlobals();
+  });
+});

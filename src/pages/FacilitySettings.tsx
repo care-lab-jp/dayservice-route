@@ -4,6 +4,7 @@ import {
   undoImport, wipeCurrentTenant, ImportError,
 } from '../store/useAppStore';
 import NumberInput from '../components/NumberInput';
+import { isValidZip, tryLookupPostalCode } from '../lib/postalCode';
 import { useTenantStore } from '../lib/tenant';
 import { getEnvApiKey, hasGoogleKey } from '../lib/travelProvider';
 import {
@@ -81,8 +82,17 @@ export default function FacilitySettings() {
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           <div>
-            <label className="label">郵便番号</label>
-            <input className="field" value={facility.postalCode} onChange={(e) => setFacility({ postalCode: e.target.value })} />
+            <label className="label">郵便番号（入力すると住所が入ります）</label>
+            <input className="field" inputMode="numeric" placeholder="600-8216"
+              value={facility.postalCode}
+              onChange={async (e) => {
+                const raw = e.target.value;
+                setFacility({ postalCode: raw });
+                if (isValidZip(raw)) {
+                  const { result } = await tryLookupPostalCode(raw);
+                  if (result) setFacility({ postalCode: result.formattedZip, address: result.address });
+                }
+              }} />
           </div>
           <div className="sm:col-span-2">
             <label className="label">住所</label>

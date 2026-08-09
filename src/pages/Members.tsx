@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Member } from '../types';
 import NumberInput from '../components/NumberInput';
+import { isValidZip, normalizeZip, tryLookupPostalCode } from '../lib/postalCode';
 import { newMemberId, useAppStore } from '../store/useAppStore';
 import { geocodeAddress, hasGoogleKey } from '../lib/travelProvider';
 import type { ApiError } from '../lib/apiErrors';
@@ -23,6 +24,7 @@ export default function Members() {
   const [busy, setBusy] = useState(false);
   const [geoMsg, setGeoMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [geoCandidates, setGeoCandidates] = useState<GeocodeCandidate[]>([]);
+  const [zipBusy, setZipBusy] = useState(false);
   const { dayPlan } = useAppStore();
   const inTodaysRoute = (id: string) =>
     !!dayPlan?.routes.some((r) => r.stops.some((s) => s.memberId === id));
@@ -37,6 +39,27 @@ export default function Members() {
     clearMatrixCache(); // 座標が変わった可能性があるので移動時間のキャッシュを破棄
     setEditing(null);
     setGeoMsg(null);
+  };
+
+  /** 郵便番号 -> 住所（送信するのは郵便番号7桁のみ。APIキー不要） */
+  const fillFromZip = async (input: string) => {
+    if (!editing) return;
+    if (!isValidZip(input)) {
+      setGeoMsg({ ok: false, text: '郵便番号は7桁で入力してください（例 600-8216）' });
+      return;
+    }
+    setZipBusy(true);
+    setGeoMsg(null);
+    const { result, error } = await tryLookupPostalCode(input);
+    setZipBusy(false);
+    if (!result) {
+      setGeoMsg({ ok: false, text: `${error?.message ?? '住所を取得できませんでした'} ${error?.hint ?? ''}` });
+      return;
+    }
+    setEditing((prev) =>
+      prev ? { ...prev, postalCode: result.formattedZip, address: result.address } : prev
+    );
+    setGeoMsg({ ok: true, text: `住所を入れました：${result.address}（このあと番地を追記してください）` });
   };
 
   /** 住所 -> 緯度経度（Googleへ送信するのは住所文字列のみ。氏名・備考は送らない） */
@@ -120,9 +143,23 @@ export default function Members() {
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
               </div>
               <div>
-                <label className="label">郵便番号</label>
-                <input className="field" value={editing.postalCode}
-                  onChange={(e) => setEditing({ ...editing, postalCode: e.target.value })} />
+                <label className="label">郵便番号（入力すると住所が入ります）</label>
+                <div className="flex gap-2">
+                  <input className="field" inputMode="numeric" placeholder="600-8216"
+                    value={editing.postalCode}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setEditing({ ...editing, postalCode: raw });
+                      // 7桁そろった時点で自動検索
+                      if (isValidZip(raw) && normalizeZip(raw) !== normalizeZip(editing.postalCode)) {
+                        void fillFromZip(raw);
+                      }
+                    }} />
+                  <button className="btn-sub whitespace-nowrap" disabled={zipBusy}
+                    onClick={() => void fillFromZip(editing.postalCode)}>
+                    {zipBusy ? '検索中…' : '住所を入れる'}
+                  </button>
+                </div>
               </div>
             </div>
             <div>
