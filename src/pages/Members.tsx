@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Member } from '../types';
+import NumberInput from '../components/NumberInput';
 import { newMemberId, useAppStore } from '../store/useAppStore';
 import { geocodeAddress, hasGoogleKey } from '../lib/travelProvider';
 import type { ApiError } from '../lib/apiErrors';
@@ -164,13 +165,13 @@ export default function Members() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">緯度</label>
-                <input className="field" type="number" step="0.0001" value={editing.lat}
-                  onChange={(e) => setEditing({ ...editing, lat: Number(e.target.value) })} />
+                <NumberInput value={editing.lat} step={0.0001} min={-90} max={90}
+                  onChange={(n) => setEditing({ ...editing, lat: n })} />
               </div>
               <div>
                 <label className="label">経度</label>
-                <input className="field" type="number" step="0.0001" value={editing.lng}
-                  onChange={(e) => setEditing({ ...editing, lng: Number(e.target.value) })} />
+                <NumberInput value={editing.lng} step={0.0001} min={-180} max={180}
+                  onChange={(n) => setEditing({ ...editing, lng: n })} />
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
@@ -198,13 +199,13 @@ export default function Members() {
             <div className="grid sm:grid-cols-3 gap-4">
               <div>
                 <label className="label">乗車時間補正（分）</label>
-                <input className="field" type="number" min={0} value={editing.boardingMinutes}
-                  onChange={(e) => setEditing({ ...editing, boardingMinutes: Number(e.target.value) })} />
+                <NumberInput value={editing.boardingMinutes} min={0} max={60} integer
+                  onChange={(n) => setEditing({ ...editing, boardingMinutes: n })} />
               </div>
               <div>
                 <label className="label">車内時間の上限（分）</label>
-                <input className="field" type="number" min={10} value={editing.maxRideMinutes ?? 40}
-                  onChange={(e) => setEditing({ ...editing, maxRideMinutes: Number(e.target.value) })} />
+                <NumberInput value={editing.maxRideMinutes ?? 40} min={10} max={180} integer
+                  onChange={(n) => setEditing({ ...editing, maxRideMinutes: n })} />
               </div>
               <div>
                 <label className="label">車いす</label>

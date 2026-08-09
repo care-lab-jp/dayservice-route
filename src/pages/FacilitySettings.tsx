@@ -3,6 +3,7 @@ import {
   newVehicleId, useAppStore, switchTenant, exportCurrentTenant, importCurrentTenant, inspectBackup,
   undoImport, wipeCurrentTenant, ImportError,
 } from '../store/useAppStore';
+import NumberInput from '../components/NumberInput';
 import { useTenantStore } from '../lib/tenant';
 import { getEnvApiKey, hasGoogleKey } from '../lib/travelProvider';
 import {
@@ -91,13 +92,13 @@ export default function FacilitySettings() {
         <div className="grid sm:grid-cols-3 gap-4">
           <div>
             <label className="label">緯度</label>
-            <input className="field" type="number" step="0.0001" value={facility.lat}
-              onChange={(e) => { setFacility({ lat: Number(e.target.value) }); clearMatrixCache(); }} />
+            <NumberInput value={facility.lat} step={0.0001} min={-90} max={90}
+              onChange={(n) => { setFacility({ lat: n }); clearMatrixCache(); }} />
           </div>
           <div>
             <label className="label">経度</label>
-            <input className="field" type="number" step="0.0001" value={facility.lng}
-              onChange={(e) => { setFacility({ lng: Number(e.target.value) }); clearMatrixCache(); }} />
+            <NumberInput value={facility.lng} step={0.0001} min={-180} max={180}
+              onChange={(n) => { setFacility({ lng: n }); clearMatrixCache(); }} />
           </div>
           <div>
             <label className="label">施設への到着希望時刻</label>
@@ -143,10 +144,8 @@ export default function FacilitySettings() {
                 </div>
                 <div>
                   <label className="label">定員（名）</label>
-                  <input className="field" type="number" min={1} max={30} value={v.capacity}
-                    onChange={(e) =>
-                      updateVehicle(v.id, { capacity: Math.max(1, Number(e.target.value) || 1) })
-                    } />
+                  <NumberInput value={v.capacity} min={1} max={30} integer
+                    onChange={(n) => updateVehicle(v.id, { capacity: n })} />
                 </div>
                 <div>
                   <label className="label">車いす対応</label>
