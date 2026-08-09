@@ -1,0 +1,26 @@
+# 依存関係
+node_modules
+
+# ビルド成果物
+dist
+dist-ssr
+*.local
+
+# ===== APIキーを含む環境変数ファイル（絶対にコミットしない） =====
+.env
+.env.*
+!.env.example
+
+# ログ・キャッシュ
+*.log
+npm-debug.log*
+.vite
+*.tsbuildinfo
+vite.config.ts.timestamp-*
+
+# エディタ・OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
