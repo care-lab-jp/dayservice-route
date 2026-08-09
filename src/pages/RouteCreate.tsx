@@ -72,7 +72,7 @@ export default function RouteCreate() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {activeMembers.map((m) => {
             const on = selectedIds.includes(m.id);
             return (
@@ -102,7 +102,7 @@ export default function RouteCreate() {
         )}
       </div>
 
-      <div className="card grid sm:grid-cols-2 gap-6">
+      <div className="card grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
         <div>
           <h2 className="text-2xl font-bold mb-3">② 出発時刻</h2>
           <input className="field text-3xl text-center" type="time" value={departTime}

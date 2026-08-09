@@ -12,11 +12,11 @@ body {
 
 @layer components {
   .card {
-    @apply bg-white rounded-2xl border border-gray-200 p-6 shadow-sm;
+    @apply bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 text-lg font-bold
-           transition select-none border-2;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 sm:px-6 py-3 sm:py-4
+           text-base sm:text-lg font-bold transition select-none border-2;
   }
   /* 押せないボタンは、はっきり「押せない」と分かる見た目にする */
   .btn:disabled {
@@ -33,11 +33,15 @@ body {
   }
   .btn-sm { @apply px-4 py-2 text-base rounded-lg; }
   .field {
-    @apply w-full rounded-xl border border-gray-300 px-4 py-3 text-lg
+    @apply w-full rounded-xl border border-gray-300 px-3 sm:px-4 py-3 text-base sm:text-lg
            focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent bg-white;
   }
   .label { @apply block text-base font-bold text-gray-700 mb-1; }
   .badge { @apply inline-block rounded-full px-3 py-1 text-sm font-bold; }
+  /* 幅の狭い端末で表がはみ出さないようにする */
+  .table-scroll {
+    @apply -mx-4 sm:mx-0 overflow-x-auto px-4 sm:px-0;
+  }
 }
 
 /* ------- 印刷用（A4縦の送迎表） ------- */

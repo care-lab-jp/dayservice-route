@@ -75,7 +75,7 @@ export default function Members() {
 
       <div className="space-y-3">
         {members.map((m) => (
-          <div key={m.id} className="card flex flex-wrap items-center gap-4">
+          <div key={m.id} className="card flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="min-w-[10rem]">
               <p className="text-xl font-bold">
                 {m.name}さん
@@ -88,12 +88,12 @@ export default function Members() {
               {m.requiresWheelchair && <span className="badge bg-accentSoft text-accent ml-2">車いす</span>}
               {m.note && <span className="text-gray-500 ml-2">（{m.note}）</span>}
             </div>
-            <div className="ml-auto flex gap-2">
-              <button className="btn-sub btn-sm" onClick={() => updateMember(m.id, { active: !m.active })}>
+            <div className="w-full sm:w-auto sm:ml-auto flex gap-2">
+              <button className="btn-sub btn-sm flex-1 sm:flex-none" onClick={() => updateMember(m.id, { active: !m.active })}>
                 {m.active ? '無効にする' : '有効にする'}
               </button>
-              <button className="btn-sub btn-sm" onClick={() => startEdit(m)}>編集</button>
-              <button className="btn-danger btn-sm"
+              <button className="btn-sub btn-sm flex-1 sm:flex-none" onClick={() => startEdit(m)}>編集</button>
+              <button className="btn-danger btn-sm flex-1 sm:flex-none"
                 onClick={() => {
                   const inRoute = inTodaysRoute(m.id);
                   const msg = inRoute
@@ -109,8 +109,8 @@ export default function Members() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 bg-black/40 grid place-items-center p-4 z-50 overflow-auto">
-          <div className="card w-full max-w-2xl space-y-4 my-8">
+        <div className="fixed inset-0 bg-black/40 grid place-items-start sm:place-items-center p-2 sm:p-4 z-50 overflow-auto">
+          <div className="card w-full max-w-2xl space-y-4 my-4 sm:my-8">
             <h3 className="text-2xl font-bold">{isNew ? '利用者の新規登録' : '利用者の編集'}</h3>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>

@@ -19,21 +19,21 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="card">
         <p className="text-gray-500 text-lg">{todayLabel()}</p>
-        <h2 className="text-3xl font-bold mt-1">{facility.name}</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold mt-1">{facility.name}</h2>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="card text-center">
           <p className="text-gray-500 text-lg">今日の利用者</p>
-          <p className="text-5xl font-bold mt-2">{todayCount}<span className="text-2xl">名</span></p>
+          <p className="text-4xl sm:text-5xl font-bold mt-2">{todayCount}<span className="text-2xl">名</span></p>
         </div>
         <div className="card text-center">
           <p className="text-gray-500 text-lg">登録利用者</p>
-          <p className="text-5xl font-bold mt-2">{activeMembers.length}<span className="text-2xl">名</span></p>
+          <p className="text-4xl sm:text-5xl font-bold mt-2">{activeMembers.length}<span className="text-2xl">名</span></p>
         </div>
         <div className="card text-center">
           <p className="text-gray-500 text-lg">出発予定</p>
-          <p className="text-5xl font-bold mt-2">{departTime}</p>
+          <p className="text-4xl sm:text-5xl font-bold mt-2">{departTime}</p>
           {first?.recommendedDepartMin != null && first.recommendedDepartReason !== 'ok' && (
             <p className={
               'mt-2 text-lg font-bold ' +

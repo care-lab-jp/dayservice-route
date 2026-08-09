@@ -186,11 +186,11 @@ export default function RouteResult() {
           ? 'border-accent bg-accentSoft'
           : 'border-amber-400 bg-amber-50')
       }>
-        <h2 className="text-2xl font-bold mb-4">今日は何時に出発すればよいか</h2>
-        <div className="grid sm:grid-cols-4 gap-4 items-stretch">
+        <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">今日は何時に出発すればよいか</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-stretch">
           <div className="rounded-2xl bg-white border border-gray-200 p-4 text-center">
             <p className="text-gray-500 text-lg">現在の設定</p>
-            <p className="text-4xl font-bold mt-1">{toHHMM(plan.departMin)}</p>
+            <p className="text-3xl sm:text-4xl font-bold mt-1">{toHHMM(plan.departMin)}</p>
           </div>
           <div className="rounded-2xl bg-white border-2 border-accent p-4 text-center">
             <p className="text-gray-600 text-lg">おすすめ</p>
@@ -317,7 +317,7 @@ export default function RouteResult() {
       {/* 交通状況のサマリ */}
       <div className="card no-print">
         <h3 className="text-2xl font-bold mb-3">移動時間の内訳</h3>
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="rounded-2xl border border-gray-200 p-4 text-center">
             <p className="text-gray-500 text-lg">通常時</p>
             <p className="text-4xl font-bold mt-1">{plan.staticTravelMin ?? plan.totalTravelMin}<span className="text-xl">分</span></p>
@@ -476,7 +476,8 @@ export default function RouteResult() {
           )}
         </div>
         <h3 className="text-2xl font-bold mb-4 no-print">送迎表（印刷プレビュー）</h3>
-        <table className="w-full text-left border-collapse">
+        <div className="table-scroll">
+        <table className="w-full text-left border-collapse min-w-[34rem]">
           <thead>
             <tr className="border-b-2 border-gray-300 text-lg">
               <th className="py-2 w-16">順</th>
@@ -510,6 +511,7 @@ export default function RouteResult() {
             </tr>
           </tbody>
         </table>
+        </div>
         <p className="mt-4 text-gray-600">
           ※到着時刻は出発時刻 {toHHMM(plan.departMin)} の交通状況をもとにした目安です。当日の状況により前後します。<br />
           ※移動時間の出所：{sourceLabel}

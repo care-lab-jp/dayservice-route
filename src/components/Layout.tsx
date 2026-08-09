@@ -71,20 +71,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-full">
       <SaveFailureBar />
       <header className="no-print bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="text-2xl font-bold">送迎ルート作成</h1>
-          <span className="text-gray-500 text-lg">{todayLabel()}</span>
+        <div className="max-w-5xl mx-auto px-4 py-3 sm:py-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 className="text-xl sm:text-2xl font-bold">送迎ルート作成</h1>
+          <span className="text-gray-500 text-base sm:text-lg">{todayLabel()}</span>
           <TenantChip />
-          <span className="ml-auto text-sm"><StatusBadge /></span>
+          <span className="w-full sm:w-auto sm:ml-auto text-sm"><StatusBadge /></span>
         </div>
-        <nav className="max-w-5xl mx-auto px-4 pb-3 flex flex-wrap gap-2">
+        <nav className="max-w-5xl mx-auto px-4 pb-3 grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           {tabs.map((t) => (
             <NavLink
               key={t.to}
               to={t.to}
               end={t.to === '/'}
               className={({ isActive }) =>
-                'rounded-xl px-5 py-3 text-lg font-bold border ' +
+                'rounded-xl px-3 sm:px-5 py-3 text-base sm:text-lg font-bold border-2 text-center ' +
                 (isActive
                   ? 'bg-accent text-white border-accent'
                   : 'bg-white text-ink border-gray-300 hover:bg-gray-50')
@@ -95,7 +95,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
+      <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">{children}</main>
     </div>
   );
 }
