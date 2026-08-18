@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Member } from '../types';
 import NumberInput from '../components/NumberInput';
 import { isValidZip, normalizeZip, tryLookupPostalCode } from '../lib/postalCode';
+import { Link } from 'react-router-dom';
 import { newMemberId, useAppStore } from '../store/useAppStore';
 import { geocodeAddress, hasGoogleKey } from '../lib/travelProvider';
 import type { ApiError } from '../lib/apiErrors';
@@ -25,7 +26,7 @@ export default function Members() {
   const [geoMsg, setGeoMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [geoCandidates, setGeoCandidates] = useState<GeocodeCandidate[]>([]);
   const [zipBusy, setZipBusy] = useState(false);
-  const { dayPlan } = useAppStore();
+  const { dayPlan, supportRecordsOf } = useAppStore();
   const inTodaysRoute = (id: string) =>
     !!dayPlan?.routes.some((r) => r.stops.some((s) => s.memberId === id));
 
@@ -112,10 +113,13 @@ export default function Members() {
               {m.requiresWheelchair && <span className="badge bg-accentSoft text-accent ml-2">車いす</span>}
               {m.note && <span className="text-gray-500 ml-2">（{m.note}）</span>}
             </div>
-            <div className="w-full sm:w-auto sm:ml-auto flex gap-2">
+            <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap gap-2">
               <button className="btn-sub btn-sm flex-1 sm:flex-none" onClick={() => updateMember(m.id, { active: !m.active })}>
                 {m.active ? '無効にする' : '有効にする'}
               </button>
+              <Link to={`/support/${m.id}`} className="btn-sub btn-sm flex-1 sm:flex-none">
+                支援記録{supportRecordsOf(m.id).length > 0 ? `（${supportRecordsOf(m.id).length}）` : ''}
+              </Link>
               <button className="btn-sub btn-sm flex-1 sm:flex-none" onClick={() => startEdit(m)}>編集</button>
               <button className="btn-danger btn-sm flex-1 sm:flex-none"
                 onClick={() => {

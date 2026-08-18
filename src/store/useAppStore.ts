@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { DayPlan, Facility, Member, RouteHistoryEntry, RoutePlan, Vehicle } from '../types';
+import type {
+  DayPlan, Facility, Member, RouteHistoryEntry, RoutePlan, SupportRecord, Vehicle,
+} from '../types';
 import { sampleFacility, sampleMembers, sampleVehicles } from '../data/sampleData';
 import { activeStore } from '../lib/storage';
 import { appStorageKey, useTenantStore } from '../lib/tenant';
@@ -23,6 +25,8 @@ interface AppState {
   history: RouteHistoryEntry[];
   /** 画面遷移をまたいで1回だけ表示するお知らせ（永続化しない） */
   notice: string | null;
+  /** 支援記録（利用者ごと・複数件を履歴として保持） */
+  supportRecords: SupportRecord[];
 
   setFacility: (f: Partial<Facility>) => void;
   addMember: (m: Member) => void;
@@ -41,6 +45,10 @@ interface AppState {
   updateActiveRoute: (p: RoutePlan) => void;
   setManualOrder: (ids: string[] | null) => void;
   setNotice: (n: string | null) => void;
+  addSupportRecord: (r: SupportRecord) => void;
+  updateSupportRecord: (recordId: string, patch: Partial<SupportRecord>) => void;
+  removeSupportRecord: (recordId: string) => void;
+  supportRecordsOf: (memberId: string) => SupportRecord[];
   /** 作成した計画を履歴へ積む */
   pushHistory: (p: DayPlan) => void;
   /** 同じ利用者構成の直近の履歴を探す（前回ルートの再利用・比較用） */
@@ -52,6 +60,7 @@ interface AppState {
 
 export const newMemberId = () => 'm-' + Math.random().toString(36).slice(2, 9);
 export const newVehicleId = () => 'car-' + Math.random().toString(36).slice(2, 9);
+export const newRecordId = () => 'rec-' + Math.random().toString(36).slice(2, 10);
 
 const sampleState = () => ({
   facility: { ...sampleFacility, tenantId: useTenantStore.getState().currentId },
@@ -65,6 +74,7 @@ const sampleState = () => ({
   manualOrder: null,
   history: [] as RouteHistoryEntry[],
   notice: null as string | null,
+  supportRecords: [] as SupportRecord[],
 });
 
 export const useAppStore = create<AppState>()(
@@ -116,6 +126,20 @@ export const useAppStore = create<AppState>()(
       setManualOrder: (ids) => set({ manualOrder: ids }),
       setNotice: (notice) => set({ notice }),
 
+      addSupportRecord: (r) => set((s) => ({ supportRecords: [r, ...s.supportRecords] })),
+      updateSupportRecord: (recordId, patch) =>
+        set((s) => ({
+          supportRecords: s.supportRecords.map((r) =>
+            r.recordId === recordId ? { ...r, ...patch, updatedAt: new Date().toISOString() } : r
+          ),
+        })),
+      removeSupportRecord: (recordId) =>
+        set((s) => ({ supportRecords: s.supportRecords.filter((r) => r.recordId !== recordId) })),
+      supportRecordsOf: (memberId) =>
+        get().supportRecords
+          .filter((r) => r.memberId === memberId)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+
       pushHistory: (p) =>
         set((s) => {
           const entry: RouteHistoryEntry = {
@@ -164,18 +188,25 @@ export const useAppStore = create<AppState>()(
           manualOrder: null,
           history: [],
           notice: null,
+          supportRecords: [],
         }),
     }),
     {
       // ★テナント（施設）ごとに保存先を分離する
       name: appStorageKey(useTenantStore.getState().currentId),
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => activeStore as Storage),
       migrate: (state) => {
         // v1（単一ルート保持）からの移行：作り直しでよいので計画だけ破棄
         const s = state as Partial<AppState> & { plan?: unknown };
         if (s && 'plan' in s) delete s.plan;
-        return { ...s, dayPlan: null, activeRouteIndex: 0, history: s.history ?? [] } as AppState;
+        return {
+          ...s,
+          dayPlan: null,
+          activeRouteIndex: 0,
+          history: s.history ?? [],
+          supportRecords: s.supportRecords ?? [],
+        } as AppState;
       },
       partialize: (s) => ({
         facility: s.facility,
@@ -188,6 +219,7 @@ export const useAppStore = create<AppState>()(
         activeRouteIndex: s.activeRouteIndex,
         manualOrder: s.manualOrder,
         history: s.history,
+        supportRecords: s.supportRecords,
       }),
     }
   )
@@ -202,7 +234,7 @@ export async function exportCurrentTenant(options?: ExportOptions): Promise<stri
     facility: s.facility, members: s.members, vehicles: s.vehicles,
     selectedIds: s.selectedIds, departTime: s.departTime, vehicleId: s.vehicleId,
     dayPlan: s.dayPlan, activeRouteIndex: s.activeRouteIndex,
-    manualOrder: s.manualOrder, history: s.history,
+    manualOrder: s.manualOrder, history: s.history, supportRecords: s.supportRecords,
   });
   return repository.exportJson(id, options);
 }

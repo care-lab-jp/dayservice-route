@@ -25,6 +25,7 @@ export default function FacilitySettings() {
   const sharedAvailable = getEnvApiKey().length > 0;
   const memberCount = useAppStore((s) => s.members.length);
   const [includeHistory, setIncludeHistory] = useState(false);
+  const [includeSupport, setIncludeSupport] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [geoBusy, setGeoBusy] = useState(false);
   const [geoMsg, setGeoMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -395,22 +396,39 @@ export default function FacilitySettings() {
           <li>シークレットウィンドウでは閉じた時点で<strong>利用者登録も消えます</strong>。
             日常業務には向きません（借りた端末での一時利用のみ）。</li>
         </ul>
-        <label className="flex items-center gap-2 text-lg">
-          <input type="checkbox" checked={includeHistory}
-            onChange={(e) => setIncludeHistory(e.target.checked)} />
-          書き出しに過去ルートの履歴も含める（既定：含めない）
-        </label>
+        <div className="space-y-2">
+          <label className="flex items-start gap-2 text-lg">
+            <input type="checkbox" className="mt-1.5" checked={includeHistory}
+              onChange={(e) => setIncludeHistory(e.target.checked)} />
+            <span>書き出しに過去ルートの履歴も含める（既定：含めない）</span>
+          </label>
+          <label className="flex items-start gap-2 text-lg">
+            <input type="checkbox" className="mt-1.5" checked={includeSupport}
+              onChange={(e) => setIncludeSupport(e.target.checked)} />
+            <span>
+              書き出しに<strong>支援記録</strong>も含める（既定：含めない）
+              <span className="block text-gray-500 text-base">
+                身体状況や本人の希望といった要配慮情報が含まれます。持ち出しには特にご注意ください。
+              </span>
+            </span>
+          </label>
+        </div>
 
         <div className="flex flex-wrap gap-3">
           <button className="btn-sub" onClick={async () => {
             const ok = confirm(
-              `利用者 ${memberCount}名の氏名・住所を含むファイルを保存します。\n\n` +
+              `利用者 ${memberCount}名の氏名・住所を含むファイルを保存します。\n` +
+              (includeSupport ? '※支援記録（身体状況・希望などの要配慮情報）も含まれます。\n' : '') +
+              '\n' +
               '・保存先（ダウンロードフォルダ）は他の職員も見られる場合があります\n' +
               '・USBメモリやメール添付での持ち出しは避けてください\n' +
               '・不要になったらファイルを削除してください\n\n書き出しますか？'
             );
             if (!ok) return;
-            const json = await exportCurrentTenant({ includeHistory });
+            const json = await exportCurrentTenant({
+              includeHistory,
+              includeSupportRecords: includeSupport,
+            });
             const blob = new Blob([json], { type: 'application/json' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);

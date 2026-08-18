@@ -236,3 +236,39 @@ export interface RouteHistoryEntry {
   returnMin: number;
   hadError: boolean;
 }
+
+/* ==================================================================
+ * 支援記録（v0.5.0で追加）
+ * 送迎ルート機能とは独立したデータ。Member 型は変更していないため、
+ * 記録を追加・編集しても作成済みの送迎表が「要再作成」にはならない。
+ * ================================================================== */
+
+/** 利用開始時／現在の状態。すべて任意で、未入力は undefined のまま保持する */
+export interface SupportMeasures {
+  /** 歩行状態（選択式のラベルをそのまま保持） */
+  gait?: string;
+  /** 立ち上がり */
+  standUp?: string;
+  /** 介助量 */
+  assistance?: string;
+  /** 歩行距離（m） */
+  walkDistanceM?: number;
+}
+
+/** 1回ぶんの支援記録 */
+export interface SupportRecord {
+  recordId: string;
+  memberId: string;
+  createdAt: string;
+  updatedAt: string;
+  /** チェックした項目のID（supportCatalog の SupportItem.id） */
+  checkedItems: string[];
+  baseline?: SupportMeasures;
+  current?: SupportMeasures;
+  /** 職員が書いた補足メモ（そのまま文章に載る） */
+  note?: string;
+  /** 組み立てた文章 */
+  generatedText: string;
+  /** 職員が修正した文章（あればこちらを正とする） */
+  editedText?: string;
+}

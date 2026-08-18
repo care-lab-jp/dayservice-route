@@ -186,7 +186,7 @@ describe('15 保存層（Repository）', () => {
   const data = {
     facility: sampleFacility, members: sampleMembers, vehicles: sampleVehicles,
     selectedIds: sampleMembers.map((m) => m.id), departTime: '08:00', vehicleId: 'car-a',
-    dayPlan: null, activeRouteIndex: 0, manualOrder: null, history: [],
+    dayPlan: null, activeRouteIndex: 0, manualOrder: null, history: [], supportRecords: [],
   };
 
   it('保存・読み出し・削除ができる', async () => {

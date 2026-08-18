@@ -5,6 +5,7 @@ import Members from './pages/Members';
 import RouteCreate from './pages/RouteCreate';
 import RouteResult from './pages/RouteResult';
 import FacilitySettings from './pages/FacilitySettings';
+import SupportRecord from './pages/SupportRecord';
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/create" element={<RouteCreate />} />
         <Route path="/result" element={<RouteResult />} />
         <Route path="/facility" element={<FacilitySettings />} />
+        <Route path="/support/:memberId" element={<SupportRecord />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

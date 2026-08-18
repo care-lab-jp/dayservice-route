@@ -15,7 +15,7 @@
  *               /tenants/{tenantId}/members/{memberId} （分割したい場合）
  *   Supabase  : app_data テーブル + RLS: tenant_id = auth.jwt() ->> 'tenant_id'
  */
-import type { DayPlan, Facility, Member, RouteHistoryEntry, Vehicle } from '../types';
+import type { DayPlan, Facility, Member, RouteHistoryEntry, SupportRecord, Vehicle } from '../types';
 import { activeStore } from './storage';
 import { appStorageKey } from './tenant';
 
@@ -31,6 +31,8 @@ export interface PersistedAppData {
   activeRouteIndex: number;
   manualOrder: string[] | null;
   history: RouteHistoryEntry[];
+  /** 支援記録（要配慮情報を含むため、書き出しは既定で除外） */
+  supportRecords: SupportRecord[];
 }
 
 /** 保存形式（zustand persist の入れ物に合わせる） */
@@ -56,7 +58,7 @@ export interface TenantRepository {
   undoImport(tenantId: string): Promise<PersistedAppData | null>;
 }
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** 取り込み時の検証エラー（画面で分岐できるようコード付き） */
 export type ImportErrorCode =
@@ -75,6 +77,8 @@ export class ImportError extends Error {
 export interface ExportOptions {
   /** 過去ルートの履歴も含めるか（既定：含めない） */
   includeHistory?: boolean;
+  /** 支援記録も含めるか（既定：含めない。身体状況などの要配慮情報を含むため） */
+  includeSupportRecords?: boolean;
 }
 
 export interface ImportOptions {
@@ -123,6 +127,9 @@ function validate(data: unknown): asserts data is PersistedAppData {
     }
   });
   if (!Array.isArray(d.vehicles)) throw new ImportError('INVALID_DATA', '車両情報が見つかりません');
+  if (d.supportRecords !== undefined && !Array.isArray(d.supportRecords)) {
+    throw new ImportError('INVALID_DATA', '支援記録の形式が不正です');
+  }
 }
 
 /** LocalStorage 実装（MVP） */
@@ -159,6 +166,7 @@ export class LocalTenantRepository implements TenantRepository {
           activeRouteIndex: 0,
           manualOrder: null,
           history: options?.includeHistory ? data.history : [],
+          supportRecords: options?.includeSupportRecords ? (data.supportRecords ?? []) : [],
         }
       : null;
 
@@ -168,8 +176,9 @@ export class LocalTenantRepository implements TenantRepository {
         schemaVersion: SCHEMA_VERSION,
         exportedAt: new Date().toISOString(),
         tenantId,
-        _warning:
-          'このファイルには利用者の氏名・住所などの個人情報が含まれます。取り扱いにご注意ください。',
+        _warning: options?.includeSupportRecords
+          ? 'このファイルには利用者の氏名・住所に加え、身体状況や希望などの要配慮情報（支援記録）が含まれます。取り扱いに特にご注意ください。'
+          : 'このファイルには利用者の氏名・住所などの個人情報が含まれます。取り扱いにご注意ください。',
         data: payload,
       },
       null,
@@ -235,6 +244,7 @@ export class LocalTenantRepository implements TenantRepository {
       activeRouteIndex: 0,
       manualOrder: null,
       history: Array.isArray(data.history) ? data.history : [],
+      supportRecords: Array.isArray(data.supportRecords) ? data.supportRecords : [],
     };
     await this.save(tenantId, normalized);
     return normalized;
