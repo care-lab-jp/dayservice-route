@@ -8,6 +8,10 @@
 import { useMemo, useState } from 'react';
 import { newMonitoringId, useAppStore } from '../store/useAppStore';
 import { buildMonitoringText, displayMonitoringText, periodLabel } from '../lib/monitoringText';
+import {
+  copyForNewRecord, findOverlapping, historySummary, overlapWarningMessage,
+  sortByPeriodDesc, validatePeriod,
+} from '../lib/monitoringRules';
 import { requestMonitoringExcelExport } from '../lib/monitoringExcel';
 import { displayTextOf } from '../lib/supportText';
 import { findItem } from '../lib/supportCatalog';
@@ -32,18 +36,22 @@ const emptyDraft = (memberId: string): MonitoringRecord => ({
 
 export default function MonitoringPanel({ member }: { member: Member }) {
   const {
-    supportRecordsOf, monitoringRecordsOf,
+    supportRecordsOf, monitoringRecords: allMonitoringRecords,
     addMonitoringRecord, updateMonitoringRecord, removeMonitoringRecord,
   } = useAppStore();
 
   const supportRecords = supportRecordsOf(member.id);
-  const records = monitoringRecordsOf(member.id);
+  const records = useMemo(
+    () => sortByPeriodDesc(allMonitoringRecords.filter((r) => r.memberId === member.id)),
+    [allMonitoringRecords, member.id]
+  );
 
   const [draft, setDraft] = useState<MonitoringRecord>(() => emptyDraft(member.id));
   const [text, setText] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [reflected, setReflected] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedFrom, setCopiedFrom] = useState<string | null>(null);
 
   const patch = (p: Partial<MonitoringRecord>) => {
     setDraft((d) => ({ ...d, ...p }));
@@ -88,6 +96,17 @@ export default function MonitoringPanel({ member }: { member: Member }) {
 
   const save = () => {
     if (!text) return;
+
+    // 期間が不正なら保存しない
+    const v = validatePeriod(draft.periodFrom, draft.periodTo);
+    if (!v.ok) { alert(v.error); return; }
+
+    // 期間が重なる記録があれば警告（保存自体は止めない）
+    const overlaps = findOverlapping(
+      allMonitoringRecords, member.id, draft.periodFrom, draft.periodTo, editingId ?? undefined
+    );
+    if (overlaps.length > 0 && !confirm(overlapWarningMessage(overlaps))) return;
+
     const now = new Date().toISOString();
     if (editingId) {
       updateMonitoringRecord(editingId, { ...draft, editedText: text });
@@ -119,6 +138,18 @@ export default function MonitoringPanel({ member }: { member: Member }) {
     setText(null);
     setEditingId(null);
     setReflected(false);
+    setCopiedFrom(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /** 前回の記録を複製して新しい記録の下書きにする（元の記録は変更しない） */
+  const copyFromPrevious = (r: MonitoringRecord) => {
+    setDraft(copyForNewRecord(r, member.id));
+    setText(null);
+    setEditingId(null);
+    setReflected(false);
+    setCopiedFrom(periodLabel(r));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   /** Excel出力（確認は requestMonitoringExcelExport の中で必ず行われる） */
@@ -158,15 +189,32 @@ export default function MonitoringPanel({ member }: { member: Member }) {
 
   return (
     <div className="space-y-6">
+      {/* いま何を編集しているか */}
+      <div className="card flex flex-wrap items-center gap-3">
+        <div>
+          <p className="text-gray-500 text-lg">作成中のモニタリング</p>
+          <p className="text-xl font-bold">
+            {editingId
+              ? `保存済みの記録を編集中（${periodLabel(draft)}）`
+              : '新しい記録を作成中'}
+          </p>
+        </div>
+        <button className="btn-sub w-full sm:w-auto sm:ml-auto" onClick={startNew}>
+          ＋ 新しいモニタリングを作成
+        </button>
+      </div>
+
+      {copiedFrom && !editingId && (
+        <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4">
+          <p className="text-lg font-bold">前回の記録（{copiedFrom}）の内容をコピーしています。</p>
+          <p>期間と評価は必ず入力・確認し直してから保存してください。前回の記録は変更されていません。</p>
+        </div>
+      )}
+
       {/* 支援記録からの反映 */}
       <div className="card space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <h3 className="text-xl sm:text-2xl font-bold">支援記録からの反映</h3>
-          {editingId && (
-            <button className="btn-sub btn-sm sm:ml-auto" onClick={startNew}>
-              新しいモニタリングにする
-            </button>
-          )}
         </div>
         {supportRecords.length === 0 ? (
           <p className="text-gray-500 text-lg">
@@ -339,41 +387,50 @@ export default function MonitoringPanel({ member }: { member: Member }) {
         </div>
       )}
 
-      {/* 履歴 */}
+      {/* モニタリング履歴 */}
       <div className="card">
-        <h3 className="text-xl sm:text-2xl font-bold mb-3">
-          これまでのモニタリング記録（{records.length}件）
-        </h3>
+        <div className="flex flex-wrap items-center gap-3 mb-3">
+          <h3 className="text-xl sm:text-2xl font-bold">
+            モニタリング履歴（{records.length}件）
+          </h3>
+          <button className="btn-sub btn-sm w-full sm:w-auto sm:ml-auto" onClick={startNew}>
+            ＋ 新しいモニタリングを作成
+          </button>
+        </div>
         {records.length === 0 ? (
           <p className="text-gray-500 text-lg">まだ保存された記録はありません。</p>
         ) : (
           <ul className="space-y-3">
-            {records.map((r) => (
-              <li key={r.monitoringRecordId}
-                className={
-                  'rounded-2xl border-2 p-4 ' +
-                  (r.monitoringRecordId === editingId ? 'border-accent bg-accentSoft' : 'border-gray-200')
-                }>
-                <p className="text-lg font-bold">{periodLabel(r)}</p>
-                <p className="text-gray-500">
-                  作成 {new Date(r.createdAt).toLocaleString('ja-JP')}
-                  {r.shortTermEvaluation && `／短期目標：${r.shortTermEvaluation}`}
-                </p>
-                <p className="text-base whitespace-pre-line mt-2 line-clamp-4">
-                  {displayMonitoringText(r)}
-                </p>
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <button className="btn-sub btn-sm" onClick={() => load(r)}>開いて修正する</button>
-                  <button className="btn-sub btn-sm" onClick={() => exportExcel(r)}>Excelで出力</button>
-                  <button className="btn-danger btn-sm" onClick={() => {
-                    if (confirm('このモニタリング記録を削除します。元に戻せません。よろしいですか？')) {
-                      removeMonitoringRecord(r.monitoringRecordId);
-                      if (editingId === r.monitoringRecordId) startNew();
-                    }
-                  }}>削除</button>
-                </div>
-              </li>
-            ))}
+            {records.map((r) => {
+              const sum = historySummary(r);
+              return (
+                <li key={r.monitoringRecordId}
+                  className={
+                    'rounded-2xl border-2 p-4 ' +
+                    (r.monitoringRecordId === editingId ? 'border-accent bg-accentSoft' : 'border-gray-200')
+                  }>
+                  <p className="text-lg sm:text-xl font-bold">{sum.period}</p>
+                  <p className="text-gray-600">評価：{sum.evaluation}</p>
+                  <p className="text-gray-500">更新日：{sum.updatedAt}</p>
+                  <p className="text-base whitespace-pre-line mt-2 line-clamp-3">
+                    {displayMonitoringText(r)}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button className="btn-sub btn-sm" onClick={() => load(r)}>開く</button>
+                    <button className="btn-sub btn-sm" onClick={() => exportExcel(r)}>Excel</button>
+                    <button className="btn-sub btn-sm" onClick={() => copyFromPrevious(r)}>
+                      この内容をコピーして新規作成
+                    </button>
+                    <button className="btn-danger btn-sm" onClick={() => {
+                      if (confirm(`${sum.period} のモニタリング記録を削除します。元に戻せません。よろしいですか？`)) {
+                        removeMonitoringRecord(r.monitoringRecordId);
+                        if (editingId === r.monitoringRecordId) startNew();
+                      }
+                    }}>削除</button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
