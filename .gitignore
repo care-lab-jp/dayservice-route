@@ -11,6 +11,9 @@ dist-ssr
 .env.*
 !.env.example
 
+# 書き出したモニタリング記録（個人情報を含むためコミットしない）
+monitoring_*.xlsx
+
 # ログ・キャッシュ
 *.log
 npm-debug.log*
