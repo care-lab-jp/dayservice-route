@@ -95,29 +95,42 @@ export async function requestMonitoringExcelExport(
 
 const THIN = { style: 'thin' as const, color: { argb: 'FF000000' } };
 const BORDER_ALL = { top: THIN, left: THIN, bottom: THIN, right: THIN };
+/** 記入欄の下線（紙の様式に合わせる） */
+const UNDERLINE = { bottom: THIN };
+
+/** 紙の様式に近づけるため、全体的に大きめ・太字にする */
+const FONT_NAME = 'Yu Gothic';
+const FONT_TITLE = { name: FONT_NAME, size: 18, bold: true };
+const FONT_HEAD = { name: FONT_NAME, size: 13, bold: true };
+const FONT_BODY = { name: FONT_NAME, size: 12, bold: true };
 
 /**
- * 提出様式「モニタリング報告」の Excel を作ってダウンロードする。
- * ・ExcelJS を動的importで読み込む（通常の画面表示では読み込まれない）
- * ・外部サーバーへは一切送信しない
+ * 提出様式「モニタリング報告」のワークブックを組み立てる。
+ * ダウンロード処理とは分けてあり、生成結果を検証できる。
  */
-export async function exportMonitoringExcel(
+export async function buildMonitoringWorkbook(
   record: MonitoringRecord,
   memberName: string,
   officeName = ''
-): Promise<string> {
+) {
   const report = buildMonitoringReport(record, memberName, officeName);
   const detail = buildMonitoringSheet(record, memberName);
 
-  const ExcelJS = await import('exceljs');
+  // 環境によって default にぶら下がるため、どちらでも動くようにする
+  const mod: any = await import('exceljs');
+  const ExcelJS: any = mod.default ?? mod;
   const wb = new ExcelJS.Workbook();
   wb.creator = 'dayservice-route';
   wb.created = new Date();
 
   /* ---- 1枚目：提出様式 ---- */
   const ws = wb.addWorksheet(report.sheetName, {
-    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
-    properties: { defaultRowHeight: 18 },
+    pageSetup: {
+      paperSize: 9, orientation: 'landscape',
+      fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 },
+    },
+    properties: { defaultRowHeight: 20 },
   });
   ws.columns = report.colWidths.map((w) => ({ width: w }));
 
@@ -125,67 +138,99 @@ export async function exportMonitoringExcel(
   ws.mergeCells('A1:D1');
   const title = ws.getCell('A1');
   title.value = report.title;
-  title.font = { size: 16, bold: true };
+  title.font = FONT_TITLE;
   title.alignment = { horizontal: 'center', vertical: 'middle' };
-  ws.getRow(1).height = 30;
+  ws.getRow(1).height = 36;
 
-  // 氏名・実施日・実施者
+  // ご利用者氏名（下線つき）
   ws.mergeCells('A2:B2');
-  ws.getCell('A2').value = report.headerLeft;
-  ws.getCell('C2').value = report.headerRight[0];
-  ws.getCell('D2').value = report.headerRight[1];
-  [ws.getCell('A2'), ws.getCell('C2'), ws.getCell('D2')].forEach((c) => {
-    c.font = { size: 11 };
-    c.alignment = { vertical: 'middle', wrapText: true };
-  });
-  ws.getRow(2).height = 24;
-  ws.getRow(3).height = 6;
+  const nameCell = ws.getCell('A2');
+  nameCell.value = report.headerLeft;
+  nameCell.font = FONT_BODY;
+  nameCell.alignment = { vertical: 'middle' };
+  nameCell.border = UNDERLINE;
+  ws.getRow(2).height = 28;
+
+  // 実施日・実施者は上下に並べる（紙の様式と同じ）
+  ws.mergeCells('C2:D2');
+  const dateCell = ws.getCell('C2');
+  dateCell.value = report.headerRight[0];
+  dateCell.font = FONT_BODY;
+  dateCell.alignment = { vertical: 'middle' };
+  dateCell.border = UNDERLINE;
+
+  ws.mergeCells('C3:D3');
+  const monitorCell = ws.getCell('C3');
+  monitorCell.value = report.headerRight[1];
+  monitorCell.font = FONT_BODY;
+  monitorCell.alignment = { vertical: 'middle' };
+  monitorCell.border = UNDERLINE;
+  ws.getRow(3).height = 28;
+
+  ws.getRow(4).height = 10;
 
   // 表の見出し
-  const headerRow = ws.getRow(4);
+  const HEAD_ROW = 5;
+  const headerRow = ws.getRow(HEAD_ROW);
   report.columnTitles.forEach((t, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = t;
-    cell.font = { bold: true };
+    cell.font = FONT_HEAD;
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
     cell.border = BORDER_ALL;
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
   });
-  headerRow.height = 24;
+  headerRow.height = 30;
 
   // 長期目標・短期目標
   report.rows.forEach((r, idx) => {
-    const row = ws.getRow(5 + idx);
+    const row = ws.getRow(HEAD_ROW + 1 + idx);
     [r.goalCell, r.implementationCell, r.achievementCell, r.directionCell].forEach((v, i) => {
       const cell = row.getCell(i + 1);
       cell.value = v;
+      cell.font = FONT_BODY;
       cell.alignment = { vertical: 'top', wrapText: true };
       cell.border = BORDER_ALL;
     });
-    row.height = 170;
+    row.height = 200;
   });
 
-  // 事業所名
-  const footerRowIndex = 5 + report.rows.length + 1;
-  ws.mergeCells(`A${footerRowIndex}:D${footerRowIndex}`);
+  // 事業所名（下線つき）
+  const footerRowIndex = HEAD_ROW + report.rows.length + 2;
+  ws.mergeCells(`A${footerRowIndex}:B${footerRowIndex}`);
   const footer = ws.getCell(`A${footerRowIndex}`);
   footer.value = report.footer;
+  footer.font = FONT_BODY;
   footer.alignment = { vertical: 'middle' };
-  ws.getRow(footerRowIndex).height = 24;
+  footer.border = UNDERLINE;
+  ws.getRow(footerRowIndex).height = 28;
 
-  /* ---- 2枚目：記録内容（項目名と内容の一覧） ---- */
+  /* ---- 2枚目：記録内容 ---- */
   const ws2 = wb.addWorksheet('記録内容');
   ws2.columns = detail.colWidths.map((w) => ({ width: w }));
   detail.rows.forEach((r, i) => {
     const row = ws2.getRow(i + 1);
     row.getCell(1).value = r[0];
     row.getCell(2).value = r[1];
-    row.getCell(1).font = { bold: r[0].startsWith('【') || i === 0 };
+    row.getCell(1).font = { name: FONT_NAME, size: 12, bold: true };
+    row.getCell(2).font = { name: FONT_NAME, size: 12 };
+    row.getCell(1).alignment = { vertical: 'top' };
     row.getCell(2).alignment = { vertical: 'top', wrapText: true };
-    if (r[0]) row.height = r[0].startsWith('【') ? 48 : 20;
+    if (r[0]) row.height = r[0].startsWith('【') ? 52 : 22;
   });
 
-  /* ---- ダウンロード ---- */
+  return { wb, fileName: report.fileName };
+}
+
+/**
+ * Excelを作ってダウンロードする。外部サーバーへは一切送信しない。
+ */
+export async function exportMonitoringExcel(
+  record: MonitoringRecord,
+  memberName: string,
+  officeName = ''
+): Promise<string> {
+  const { wb, fileName } = await buildMonitoringWorkbook(record, memberName, officeName);
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -193,9 +238,8 @@ export async function exportMonitoringExcel(
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = report.fileName;
+  a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
-
-  return report.fileName;
+  return fileName;
 }

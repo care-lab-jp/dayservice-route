@@ -196,3 +196,67 @@ describe('R-07 既存データの互換性', () => {
     expect(all(r)).not.toContain('undefined');
   });
 });
+
+describe('R-08 出力ファイルの体裁（紙の様式に合わせる）', () => {
+  const full = rec({
+    monitoringDate: '2026-08-31', monitorName: '介護 花子',
+    longTermAssessment: { implementation: '一部実施できた', achievement: '一部達成' },
+  });
+
+  it('表題・見出し・本文が大きく太字になっている', async () => {
+    const { buildMonitoringWorkbook } = await import('../monitoringExcel');
+    const { wb } = await buildMonitoringWorkbook(full, '山田太郎', 'さくらデイサービス');
+    const ws = wb.getWorksheet('モニタリング報告')!;
+
+    expect(ws.getCell('A1').font?.size).toBe(18);
+    expect(ws.getCell('A1').font?.bold).toBe(true);
+    // 表の見出し
+    expect(ws.getCell('A5').font?.size).toBe(13);
+    expect(ws.getCell('A5').font?.bold).toBe(true);
+    // 本文
+    expect(ws.getCell('A6').font?.size).toBe(12);
+    expect(ws.getCell('A6').font?.bold).toBe(true);
+  });
+
+  it('氏名・実施日・実施者・事業所名に下線が入る', async () => {
+    const { buildMonitoringWorkbook } = await import('../monitoringExcel');
+    const { wb } = await buildMonitoringWorkbook(full, '山田太郎', 'さくらデイサービス');
+    const ws = wb.getWorksheet('モニタリング報告')!;
+
+    ['A2', 'C2', 'C3', 'A9'].forEach((addr) => {
+      expect(ws.getCell(addr).border?.bottom?.style).toBe('thin');
+    });
+  });
+
+  it('実施日と実施者が上下に並ぶ', async () => {
+    const { buildMonitoringWorkbook } = await import('../monitoringExcel');
+    const { wb } = await buildMonitoringWorkbook(full, '山田太郎');
+    const ws = wb.getWorksheet('モニタリング報告')!;
+
+    expect(String(ws.getCell('C2').value)).toContain('モニタリング実施日');
+    expect(String(ws.getCell('C3').value)).toContain('モニタリング実施者');
+    // 同じ行に横並びしていないこと
+    expect(String(ws.getCell('D2').value ?? '')).not.toContain('実施者');
+  });
+
+  it('表の枠に四方の罫線が入る', async () => {
+    const { buildMonitoringWorkbook } = await import('../monitoringExcel');
+    const { wb } = await buildMonitoringWorkbook(full, '山田太郎');
+    const ws = wb.getWorksheet('モニタリング報告')!;
+
+    ['A5', 'B5', 'C5', 'D5', 'A6', 'D7'].forEach((addr) => {
+      const b = ws.getCell(addr).border;
+      expect(b?.top?.style).toBe('thin');
+      expect(b?.left?.style).toBe('thin');
+      expect(b?.right?.style).toBe('thin');
+      expect(b?.bottom?.style).toBe('thin');
+    });
+  });
+
+  it('2枚目に記録内容のシートがある', async () => {
+    const { buildMonitoringWorkbook } = await import('../monitoringExcel');
+    const { wb, fileName } = await buildMonitoringWorkbook(full, '山田太郎');
+    expect(wb.worksheets.map((w: { name: string }) => w.name)).toEqual(['モニタリング報告', '記録内容']);
+    expect(fileName).toBe('monitoring_山田太郎_2026-08-31.xlsx');
+  });
+});
