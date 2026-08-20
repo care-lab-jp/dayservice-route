@@ -11,6 +11,7 @@ const tabs = [
   { to: '/result', label: 'ルート結果' },
   { to: '/members', label: '利用者管理' },
   { to: '/facility', label: '施設設定' },
+  { to: '/help', label: '？ 使い方' },
 ];
 
 /** 保存に失敗したことを、消えない赤帯で知らせる（黙って失われるのを防ぐ） */

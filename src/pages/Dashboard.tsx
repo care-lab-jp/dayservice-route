@@ -2,6 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { todayLabel, toHHMM } from '../lib/time';
 import { planFreshness } from '../lib/freshness';
+import HelpLink from '../components/HelpLink';
+import FirstRunGuide from '../components/FirstRunGuide';
+import { HELP_ANCHORS } from '../lib/helpContent';
 
 export default function Dashboard() {
   const { facility, members, vehicles, selectedIds, dayPlan, departTime } = useAppStore();
@@ -17,10 +20,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="card">
-        <p className="text-gray-500 text-lg">{todayLabel()}</p>
-        <h2 className="text-2xl sm:text-3xl font-bold mt-1">{facility.name}</h2>
+      <div className="card flex flex-wrap items-start gap-3">
+        <div>
+          <p className="text-gray-500 text-lg">{todayLabel()}</p>
+          <h2 className="text-2xl sm:text-3xl font-bold mt-1">{facility.name}</h2>
+        </div>
+        <div className="ml-auto"><HelpLink anchor={HELP_ANCHORS.dashboard} /></div>
       </div>
+
+      <FirstRunGuide />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="card text-center">

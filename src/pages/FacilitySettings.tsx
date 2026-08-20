@@ -4,6 +4,8 @@ import {
   undoImport, wipeCurrentTenant, ImportError,
 } from '../store/useAppStore';
 import NumberInput from '../components/NumberInput';
+import HelpLink from '../components/HelpLink';
+import { HELP_ANCHORS } from '../lib/helpContent';
 import { isValidZip, tryLookupPostalCode } from '../lib/postalCode';
 import { useTenantStore } from '../lib/tenant';
 import { geocodeAddress, getEnvApiKey, hasGoogleKey } from '../lib/travelProvider';
@@ -72,7 +74,10 @@ export default function FacilitySettings() {
     <div className="space-y-6">
       {/* ---------------- 施設（テナント）の切替 ---------------- */}
       <div className="card space-y-4">
-        <h2 className="text-2xl font-bold">施設の切替（マルチテナント）</h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-2xl font-bold">施設の切替（マルチテナント）</h2>
+          <div className="ml-auto"><HelpLink anchor={HELP_ANCHORS.settings} /></div>
+        </div>
         <p className="text-gray-600">
           施設ごとにデータは完全に分離して保存されます。他の施設の利用者情報は表示も編集もできません。
         </p>

@@ -10,6 +10,8 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { newRecordId, useAppStore } from '../store/useAppStore';
 import MonitoringPanel from '../components/MonitoringPanel';
+import HelpLink from '../components/HelpLink';
+import { HELP_ANCHORS } from '../lib/helpContent';
 import { buildSupportText, displayTextOf } from '../lib/supportText';
 import {
   ASSISTANCE_OPTIONS, CATEGORY_LABELS, GAIT_OPTIONS, STANDUP_OPTIONS,
@@ -131,7 +133,8 @@ export default function SupportRecord() {
             <p className="text-gray-500 text-lg">支援記録</p>
             <h2 className="text-2xl sm:text-3xl font-bold">{member.name}さん</h2>
           </div>
-          <div className="w-full sm:w-auto sm:ml-auto flex gap-2">
+          <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
+            <HelpLink anchor={HELP_ANCHORS.support} />
             <button className="btn-sub btn-sm flex-1 sm:flex-none" onClick={() => navigate('/members')}>
               利用者管理へ戻る
             </button>

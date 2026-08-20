@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { adaptPreviousOrder, checkVehicleFit, createDayPlan, recalcPlan } from '../lib/planner';
+import HelpLink from '../components/HelpLink';
+import { HELP_ANCHORS } from '../lib/helpContent';
 
 export default function RouteCreate() {
   const {
@@ -63,6 +65,7 @@ export default function RouteCreate() {
       <div className="card">
         <div className="flex items-center flex-wrap gap-3 mb-4">
           <h2 className="text-2xl font-bold">① 今日の利用者を選ぶ</h2>
+          <HelpLink anchor={HELP_ANCHORS.routeCreate} />
           <span className="text-xl font-bold text-accent">{chosen.length}名 選択中</span>
           <div className="ml-auto flex gap-2">
             <button className="btn-sub btn-sm" onClick={() => setSelected(activeMembers.map((m) => m.id))}>

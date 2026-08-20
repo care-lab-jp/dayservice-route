@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Member } from '../types';
 import NumberInput from '../components/NumberInput';
+import HelpLink from '../components/HelpLink';
+import { HELP_ANCHORS } from '../lib/helpContent';
 import { isValidZip, normalizeZip, tryLookupPostalCode } from '../lib/postalCode';
 import { Link } from 'react-router-dom';
 import { newMemberId, useAppStore } from '../store/useAppStore';
@@ -95,7 +97,10 @@ export default function Members() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <h2 className="text-2xl font-bold">利用者管理（{members.length}名）</h2>
-        <button className="btn-primary ml-auto" onClick={startNew}>＋ 新規登録</button>
+        <div className="ml-auto flex items-center gap-2">
+          <HelpLink anchor={HELP_ANCHORS.members} />
+          <button className="btn-primary" onClick={startNew}>＋ 新規登録</button>
+        </div>
       </div>
 
       <div className="space-y-3">

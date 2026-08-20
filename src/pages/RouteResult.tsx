@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { recalcPlan, recommendDepart, reorderIfAllowed } from '../lib/planner';
 import { planFreshness } from '../lib/freshness';
+import HelpLink from '../components/HelpLink';
+import { HELP_ANCHORS } from '../lib/helpContent';
 import { toHHMM, todayLabel } from '../lib/time';
 import MapView, { circledNumber, type MapPoint } from '../components/MapView';
 import { useApiStatus } from '../lib/apiStatus';
@@ -186,7 +188,10 @@ export default function RouteResult() {
           ? 'border-accent bg-accentSoft'
           : 'border-amber-400 bg-amber-50')
       }>
-        <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">今日は何時に出発すればよいか</h2>
+        <div className="flex flex-wrap items-center gap-3 mb-3 sm:mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold">今日は何時に出発すればよいか</h2>
+          <div className="ml-auto"><HelpLink anchor={HELP_ANCHORS.routeResult} /></div>
+        </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 items-stretch">
           <div className="rounded-2xl bg-white border border-gray-200 p-4 text-center">
             <p className="text-gray-500 text-lg">現在の設定</p>
