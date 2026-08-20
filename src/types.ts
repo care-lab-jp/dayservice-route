@@ -287,6 +287,33 @@ export type GoalEvaluation =
   | '継続して支援'
   | '評価困難';
 
+/* --- 提出様式「モニタリング報告」で使う選択肢 --- */
+
+/** 実施状況 */
+export type MonitoringImplementation = '計画通り実施できた' | '一部実施できた' | '未実施';
+/** 目標達成度 */
+export type MonitoringAchievement = '達成' | '一部達成' | '未達成';
+/** 本人満足度 */
+export type MonitoringSatisfaction = '満足' | 'ある程度満足' | '不満';
+/** 今後の方向性 */
+export type MonitoringDirection =
+  | 'サービスを継続'
+  | 'サービス内容変更して継続'
+  | 'サービスを中止';
+
+/** 長期目標・短期目標それぞれの評価欄（すべて任意。未選択は undefined） */
+export interface MonitoringGoalAssessment {
+  /** 目標の期間（YYYY-MM-DD） */
+  periodFrom?: string;
+  periodTo?: string;
+  implementation?: MonitoringImplementation;
+  /** 具体的な理由等 */
+  reason?: string;
+  achievement?: MonitoringAchievement;
+  satisfaction?: MonitoringSatisfaction;
+  direction?: MonitoringDirection;
+}
+
 export interface MonitoringRecord {
   monitoringRecordId: string;
   memberId: string;
@@ -320,4 +347,14 @@ export interface MonitoringRecord {
 
   generatedText: string;
   editedText?: string;
+
+  /* --- 提出様式「モニタリング報告」用（v0.5.3で追加・すべて任意） --- */
+  /** モニタリング実施日（YYYY-MM-DD） */
+  monitoringDate?: string;
+  /** モニタリング実施者 */
+  monitorName?: string;
+  /** 長期目標の評価欄 */
+  longTermAssessment?: MonitoringGoalAssessment;
+  /** 短期目標の評価欄 */
+  shortTermAssessment?: MonitoringGoalAssessment;
 }

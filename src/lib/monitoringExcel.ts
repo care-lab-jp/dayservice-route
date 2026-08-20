@@ -11,6 +11,7 @@
 import type { MonitoringRecord } from '../types';
 import { displayMonitoringText, formatDateJa, periodLabel } from './monitoringText';
 import { buildMonitoringText } from './monitoringText';
+import { buildMonitoringReport } from './monitoringReport';
 
 /** シートに並べる「項目名 / 内容」の2列 */
 export type SheetRow = [string, string];
@@ -74,48 +75,127 @@ export const EXPORT_CONFIRM_MESSAGE =
 
 /**
  * 確認を取ってから出力する。
- * 確認関数を差し替えられるようにして、確認なしで出力されないことをテストで固定している。
+ * 確認関数と出力処理を差し替えられるようにして、
+ * 確認なしで出力されないことをテストで固定している。
  * @returns 出力したファイル名。取りやめた場合は null
  */
 export async function requestMonitoringExcelExport(
   record: MonitoringRecord,
   memberName: string,
   confirmFn: (message: string) => boolean = (m) => window.confirm(m),
-  /** 実際の書き出し処理（テストで差し替えられるようにしている） */
-  exporter: (r: MonitoringRecord, name: string) => Promise<string> = exportMonitoringExcel
+  exporter: (r: MonitoringRecord, name: string, office?: string) => Promise<string> =
+    exportMonitoringExcel,
+  officeName = ''
 ): Promise<string | null> {
   if (!confirmFn(EXPORT_CONFIRM_MESSAGE)) return null;
-  return exporter(record, memberName);
+  return exporter(record, memberName, officeName);
 }
 
+/* ---------------- ここから下がファイル生成（ブラウザ内で完結） ---------------- */
+
+const THIN = { style: 'thin' as const, color: { argb: 'FF000000' } };
+const BORDER_ALL = { top: THIN, left: THIN, bottom: THIN, right: THIN };
+
 /**
- * Excelファイルを生成してダウンロードする。
- * 直接呼ばず、requestMonitoringExcelExport を使うこと（確認の取りこぼしを防ぐため）。
+ * 提出様式「モニタリング報告」の Excel を作ってダウンロードする。
+ * ・ExcelJS を動的importで読み込む（通常の画面表示では読み込まれない）
+ * ・外部サーバーへは一切送信しない
  */
 export async function exportMonitoringExcel(
   record: MonitoringRecord,
-  memberName: string
+  memberName: string,
+  officeName = ''
 ): Promise<string> {
-  const sheet = buildMonitoringSheet(record, memberName);
-  // 使うときだけ読み込む（初期表示を重くしない）
-  const XLSX = await import('xlsx');
+  const report = buildMonitoringReport(record, memberName, officeName);
+  const detail = buildMonitoringSheet(record, memberName);
 
-  const ws = XLSX.utils.aoa_to_sheet(sheet.rows);
-  ws['!cols'] = sheet.colWidths.map((w) => ({ wch: w }));
-  // 見出し行を結合し、本文は折り返して表示する
-  ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
-  sheet.rows.forEach((_, i) => {
-    const addr = XLSX.utils.encode_cell({ r: i, c: 1 });
-    if (ws[addr]) ws[addr].s = { alignment: { wrapText: true, vertical: 'top' } };
+  const ExcelJS = await import('exceljs');
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'dayservice-route';
+  wb.created = new Date();
+
+  /* ---- 1枚目：提出様式 ---- */
+  const ws = wb.addWorksheet(report.sheetName, {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    properties: { defaultRowHeight: 18 },
   });
-  ws['!rows'] = sheet.rows.map(([label, value]) => {
-    const lines = String(value ?? '').split('\n').length;
-    const wrapped = Math.ceil(String(value ?? '').length / 60);
-    return { hpt: label.startsWith('【') ? Math.max(24, (lines + wrapped) * 15) : 20 };
+  ws.columns = report.colWidths.map((w) => ({ width: w }));
+
+  // 表題
+  ws.mergeCells('A1:D1');
+  const title = ws.getCell('A1');
+  title.value = report.title;
+  title.font = { size: 16, bold: true };
+  title.alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(1).height = 30;
+
+  // 氏名・実施日・実施者
+  ws.mergeCells('A2:B2');
+  ws.getCell('A2').value = report.headerLeft;
+  ws.getCell('C2').value = report.headerRight[0];
+  ws.getCell('D2').value = report.headerRight[1];
+  [ws.getCell('A2'), ws.getCell('C2'), ws.getCell('D2')].forEach((c) => {
+    c.font = { size: 11 };
+    c.alignment = { vertical: 'middle', wrapText: true };
+  });
+  ws.getRow(2).height = 24;
+  ws.getRow(3).height = 6;
+
+  // 表の見出し
+  const headerRow = ws.getRow(4);
+  report.columnTitles.forEach((t, i) => {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = t;
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = BORDER_ALL;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+  });
+  headerRow.height = 24;
+
+  // 長期目標・短期目標
+  report.rows.forEach((r, idx) => {
+    const row = ws.getRow(5 + idx);
+    [r.goalCell, r.implementationCell, r.achievementCell, r.directionCell].forEach((v, i) => {
+      const cell = row.getCell(i + 1);
+      cell.value = v;
+      cell.alignment = { vertical: 'top', wrapText: true };
+      cell.border = BORDER_ALL;
+    });
+    row.height = 170;
   });
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheet.sheetName);
-  XLSX.writeFile(wb, sheet.fileName); // ブラウザ内でダウンロードされる
-  return sheet.fileName;
+  // 事業所名
+  const footerRowIndex = 5 + report.rows.length + 1;
+  ws.mergeCells(`A${footerRowIndex}:D${footerRowIndex}`);
+  const footer = ws.getCell(`A${footerRowIndex}`);
+  footer.value = report.footer;
+  footer.alignment = { vertical: 'middle' };
+  ws.getRow(footerRowIndex).height = 24;
+
+  /* ---- 2枚目：記録内容（項目名と内容の一覧） ---- */
+  const ws2 = wb.addWorksheet('記録内容');
+  ws2.columns = detail.colWidths.map((w) => ({ width: w }));
+  detail.rows.forEach((r, i) => {
+    const row = ws2.getRow(i + 1);
+    row.getCell(1).value = r[0];
+    row.getCell(2).value = r[1];
+    row.getCell(1).font = { bold: r[0].startsWith('【') || i === 0 };
+    row.getCell(2).alignment = { vertical: 'top', wrapText: true };
+    if (r[0]) row.height = r[0].startsWith('【') ? 48 : 20;
+  });
+
+  /* ---- ダウンロード ---- */
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = report.fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  return report.fileName;
 }

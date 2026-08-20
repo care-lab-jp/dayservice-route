@@ -15,7 +15,12 @@ import {
 import { requestMonitoringExcelExport } from '../lib/monitoringExcel';
 import { displayTextOf } from '../lib/supportText';
 import { findItem } from '../lib/supportCatalog';
-import type { GoalEvaluation, Member, MonitoringRecord, SupportMeasures } from '../types';
+import {
+  ACHIEVEMENT_OPTIONS, DIRECTION_OPTIONS, IMPLEMENTATION_OPTIONS, SATISFACTION_OPTIONS,
+} from '../lib/monitoringReport';
+import type {
+  GoalEvaluation, Member, MonitoringGoalAssessment, MonitoringRecord, SupportMeasures,
+} from '../types';
 
 const EVALUATIONS: GoalEvaluation[] = [
   '達成', '概ね達成', '一部達成', '未達成', '継続して支援', '評価困難',
@@ -36,7 +41,7 @@ const emptyDraft = (memberId: string): MonitoringRecord => ({
 
 export default function MonitoringPanel({ member }: { member: Member }) {
   const {
-    supportRecordsOf, monitoringRecords: allMonitoringRecords,
+    facility, supportRecordsOf, monitoringRecords: allMonitoringRecords,
     addMonitoringRecord, updateMonitoringRecord, removeMonitoringRecord,
   } = useAppStore();
 
@@ -155,7 +160,9 @@ export default function MonitoringPanel({ member }: { member: Member }) {
   /** Excel出力（確認は requestMonitoringExcelExport の中で必ず行われる） */
   const exportExcel = async (r: MonitoringRecord) => {
     try {
-      const name = await requestMonitoringExcelExport(r, member.name);
+      const name = await requestMonitoringExcelExport(
+        r, member.name, undefined, undefined, facility.name
+      );
       if (name) alert(`出力しました：${name}`);
     } catch (e) {
       alert('出力できませんでした：' + (e as Error).message);
@@ -186,6 +193,70 @@ export default function MonitoringPanel({ member }: { member: Member }) {
         value={comment} onChange={(e) => onComment(e.target.value)} />
     </div>
   );
+
+  /** 提出様式の1目標ぶんの入力欄 */
+  const assessmentBlock = (
+    title: string,
+    key: 'longTermAssessment' | 'shortTermAssessment'
+  ) => {
+    const a: MonitoringGoalAssessment = draft[key] ?? {};
+    const setA = (p: Partial<MonitoringGoalAssessment>) => patch({ [key]: { ...a, ...p } });
+    const sel = (
+      label: string,
+      options: readonly string[],
+      value: string | undefined,
+      onChange: (v: string | undefined) => void
+    ) => (
+      <div>
+        <label className="label">{label}</label>
+        <select className="field" value={value ?? ''}
+          onChange={(e) => onChange(e.target.value || undefined)}>
+          <option value="">未選択</option>
+          {options.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
+    );
+
+    return (
+      <div className="rounded-2xl border-2 border-gray-200 p-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h4 className="text-lg sm:text-xl font-bold">{title}</h4>
+          <button className="btn-sub btn-sm sm:ml-auto"
+            onClick={() => setA({ periodFrom: draft.periodFrom, periodTo: draft.periodTo })}>
+            モニタリング期間を入れる
+          </button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">期間（開始）</label>
+            <input className="field" type="date" value={a.periodFrom ?? ''}
+              onChange={(e) => setA({ periodFrom: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">期間（終了）</label>
+            <input className="field" type="date" value={a.periodTo ?? ''}
+              onChange={(e) => setA({ periodTo: e.target.value })} />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {sel('実施状況', IMPLEMENTATION_OPTIONS, a.implementation,
+            (v) => setA({ implementation: v as MonitoringGoalAssessment['implementation'] }))}
+          {sel('目標達成度', ACHIEVEMENT_OPTIONS, a.achievement,
+            (v) => setA({ achievement: v as MonitoringGoalAssessment['achievement'] }))}
+          {sel('本人満足度', SATISFACTION_OPTIONS, a.satisfaction,
+            (v) => setA({ satisfaction: v as MonitoringGoalAssessment['satisfaction'] }))}
+        </div>
+        {sel('今後の方向性', DIRECTION_OPTIONS, a.direction,
+          (v) => setA({ direction: v as MonitoringGoalAssessment['direction'] }))}
+        <div>
+          <label className="label">具体的な理由等</label>
+          <textarea className="field min-h-[4rem]"
+            placeholder="未入力の場合は、上の評価コメントがExcelに入ります"
+            value={a.reason ?? ''} onChange={(e) => setA({ reason: e.target.value })} />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -336,6 +407,37 @@ export default function MonitoringPanel({ member }: { member: Member }) {
         {evalRow('短期目標', draft.shortTermEvaluation,
           (v) => patch({ shortTermEvaluation: v }),
           draft.shortTermComment ?? '', (v) => patch({ shortTermComment: v }))}
+      </div>
+
+      {/* 提出様式「モニタリング報告」 */}
+      <div className="card space-y-5">
+        <div>
+          <h3 className="text-xl sm:text-2xl font-bold">提出様式「モニタリング報告」</h3>
+          <p className="text-gray-500">
+            ここで選んだ内容が、Excel出力の様式（☑）に反映されます。選ばなかった項目は □ のままです。
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">モニタリング実施日</label>
+            <input className="field" type="date" value={draft.monitoringDate ?? ''}
+              onChange={(e) => patch({ monitoringDate: e.target.value })} />
+          </div>
+          <div>
+            <label className="label">モニタリング実施者</label>
+            <input className="field" placeholder="担当職員名"
+              value={draft.monitorName ?? ''}
+              onChange={(e) => patch({ monitorName: e.target.value })} />
+          </div>
+        </div>
+
+        {assessmentBlock('長期目標', 'longTermAssessment')}
+        {assessmentBlock('短期目標', 'shortTermAssessment')}
+
+        <p className="text-gray-500">
+          事業所名は施設設定の「{facility.name}」がExcelに入ります。
+        </p>
       </div>
 
       {/* 方針・総合コメント */}
