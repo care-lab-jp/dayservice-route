@@ -459,3 +459,66 @@ describe('M-07 送迎機能への非干渉', () => {
     });
   });
 });
+
+describe('M-08 前回・目標からの引用', () => {
+  it('目標の期間を評価欄の期間として引用できる', async () => {
+    const { periodFromGoal } = await import('../monitoringYear');
+    expect(periodFromGoal(goal({ startDate: '2026-04-01', endDate: '2026-09-30' })))
+      .toEqual({ periodFrom: '2026-04-01', periodTo: '2026-09-30' });
+    // 終了日が未定なら空のまま（勝手に埋めない）
+    expect(periodFromGoal(goal({ startDate: '2026-04-01', endDate: '' })))
+      .toEqual({ periodFrom: '2026-04-01', periodTo: undefined });
+    expect(periodFromGoal(null)).toEqual({});
+  });
+
+  it('前回の月の記録を見つけられる', async () => {
+    const { previousMonthlyRecord } = await import('../monitoringYear');
+    const list = [
+      monthly({ year: 2026, month: 4 }),
+      monthly({ year: 2026, month: 6 }),
+      monthly({ year: 2025, month: 12 }),
+    ];
+    expect(previousMonthlyRecord(list, 'm-1', 2026, 7)?.month).toBe(6);
+    expect(previousMonthlyRecord(list, 'm-1', 2026, 5)?.month).toBe(4);
+    // 年をまたいでも直前を選ぶ
+    expect(previousMonthlyRecord(list, 'm-1', 2026, 1)?.year).toBe(2025);
+    // それより前が無ければ null
+    expect(previousMonthlyRecord(list, 'm-1', 2025, 1)).toBeNull();
+    // 他の利用者は対象外
+    expect(previousMonthlyRecord(list, 'm-2', 2026, 7)).toBeNull();
+  });
+
+  it('前回の評価欄だけを引用する（実施日・目標本文は引き継がない）', async () => {
+    const { carryOverAssessments } = await import('../monitoringYear');
+    const prev = monthly({
+      month: 6, implementedOn: '2026-06-10', monitorName: '福山',
+      longGoalText: '当時の長期目標', shortGoalText: '当時の短期目標',
+      longTerm: {
+        periodFrom: '2026-04-01', periodTo: '2027-03-31',
+        implementation: '一部実施できた', achievement: '一部達成',
+        satisfaction: 'ある程度満足', direction: 'サービスを継続',
+        reason: '前回の理由',
+      },
+      shortTerm: { implementation: '計画通り実施できた' },
+    });
+    const carried = carryOverAssessments(prev);
+
+    expect(carried.longTerm.implementation).toBe('一部実施できた');
+    expect(carried.longTerm.achievement).toBe('一部達成');
+    expect(carried.longTerm.satisfaction).toBe('ある程度満足');
+    expect(carried.longTerm.direction).toBe('サービスを継続');
+    expect(carried.longTerm.reason).toBe('前回の理由');
+    expect(carried.longTerm.periodFrom).toBe('2026-04-01');
+    expect(carried.shortTerm.implementation).toBe('計画通り実施できた');
+    // 引き継がないもの
+    expect(Object.keys(carried)).toEqual(['longTerm', 'shortTerm']);
+  });
+
+  it('引用しても前回の記録は書き換わらない', async () => {
+    const { carryOverAssessments } = await import('../monitoringYear');
+    const prev = monthly({ month: 6, longTerm: { reason: '前回の理由' } });
+    const carried = carryOverAssessments(prev);
+    carried.longTerm.reason = '書き換えた';
+    expect(prev.longTerm.reason).toBe('前回の理由');
+  });
+});

@@ -16,8 +16,9 @@ import {
   ACHIEVEMENT_OPTIONS, DIRECTION_OPTIONS, IMPLEMENTATION_OPTIONS, SATISFACTION_OPTIONS,
 } from '../lib/monitoringReport';
 import {
-  MONTHS, availableYears, findMonthly, goalForMonth, goalHistory, isEmptyMonthly,
-  monitorNameSuggestions, monthLabel, monthsWithData, shortTermEndDate,
+  MONTHS, availableYears, carryOverAssessments, findMonthly, goalForMonth, goalHistory,
+  isEmptyMonthly, monitorNameSuggestions, monthLabel, monthsWithData, periodFromGoal,
+  previousMonthlyRecord, shortTermEndDate,
 } from '../lib/monitoringYear';
 import { buildMonitoringYearWorkbook } from '../lib/monitoringWorkbook';
 import type {
@@ -69,7 +70,9 @@ export default function Monitoring() {
         monthlyId: newMonthlyId(),
         memberId, year, month,
         implementedOn: '', monitorName: monitorCandidates[0] ?? '',
-        longTerm: emptyAssessment(), shortTerm: emptyAssessment(),
+        // 期間は上部で登録した目標から引用する
+        longTerm: { ...emptyAssessment(), ...periodFromGoal(longGoal) },
+        shortTerm: { ...emptyAssessment(), ...periodFromGoal(shortGoal) },
         longGoalText: longGoal?.text ?? '', shortGoalText: shortGoal?.text ?? '',
         longGoalTermId: longGoal?.goalTermId, shortGoalTermId: shortGoal?.goalTermId,
         createdAt: '', updatedAt: '',
@@ -97,6 +100,33 @@ export default function Monitoring() {
   };
   const patchGoal = (key: 'longTerm' | 'shortTerm', p: Partial<MonitoringGoalAssessment>) => {
     setDraft((d) => (d ? { ...d, [key]: { ...(d[key] ?? {}), ...p } } : d));
+    setDirty(true);
+    setSavedAt(null);
+  };
+
+  /** 上部の目標の期間を、この月の期間欄へ入れ直す */
+  const applyGoalPeriod = (key: 'longTerm' | 'shortTerm') => {
+    const term = key === 'longTerm' ? longGoal : shortGoal;
+    if (!term) {
+      alert('先に上の「目標」を登録してください。');
+      return;
+    }
+    patchGoal(key, periodFromGoal(term));
+  };
+
+  /** 前回の月の評価欄を引用する（実施日・目標本文は引き継がない） */
+  const prevRecord = previousMonthlyRecord(monitoringMonthly, memberId, year, month);
+  const applyPrevious = () => {
+    if (!prevRecord) return;
+    const label = `${prevRecord.year}年${prevRecord.month}月`;
+    if (!confirm(`${label}の内容を引用します。いまの入力は上書きされます。よろしいですか？`)) return;
+    const carried = carryOverAssessments(prevRecord);
+    setDraft((d) => (d ? {
+      ...d,
+      longTerm: { ...carried.longTerm },
+      shortTerm: { ...carried.shortTerm },
+      monitorName: d.monitorName || prevRecord.monitorName || '',
+    } : d));
     setDirty(true);
     setSavedAt(null);
   };
@@ -267,7 +297,12 @@ export default function Monitoring() {
     );
     return (
       <div className="rounded-2xl border-2 border-gray-200 p-4 space-y-3">
-        <h4 className="text-lg sm:text-xl font-bold">{label}</h4>
+        <div className="flex flex-wrap items-center gap-3">
+          <h4 className="text-lg sm:text-xl font-bold">{label}</h4>
+          <button className="btn-sub btn-sm sm:ml-auto" onClick={() => applyGoalPeriod(key)}>
+            目標の期間を入れる
+          </button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="label">期間（開始）</label>
@@ -374,6 +409,18 @@ export default function Monitoring() {
             {dirty ? '未保存の変更があります' : savedAt ? `保存しました（${savedAt}）` : '変更なし'}
           </span>
         </div>
+
+        {prevRecord && (
+          <div className="rounded-2xl border-2 border-gray-200 p-3 flex flex-wrap items-center gap-3">
+            <p className="text-base sm:text-lg">
+              前回の記録：{prevRecord.year}年{prevRecord.month}月
+              {prevRecord.monitorName && `（${prevRecord.monitorName}）`}
+            </p>
+            <button className="btn-sub btn-sm sm:ml-auto" onClick={applyPrevious}>
+              前回の内容を引用する
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>

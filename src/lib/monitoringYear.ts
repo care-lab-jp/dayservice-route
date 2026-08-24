@@ -6,7 +6,7 @@
  * ・短期目標の終了日は「開始日から6か月間」として自動計算する（手動修正も可）
  */
 import type {
-  MonitoringGoalKind, MonitoringGoalTerm, MonitoringMonthlyRecord,
+  MonitoringGoalAssessment, MonitoringGoalKind, MonitoringGoalTerm, MonitoringMonthlyRecord,
 } from '../types';
 
 export const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
@@ -203,4 +203,49 @@ export function availableYears(
   );
   years.add(today.getFullYear());
   return [...years].sort((a, b) => b - a);
+}
+
+/**
+ * 指定の年月より前で、いちばん近い月の記録を返す。
+ * 「前回の内容を引用する」ときの引用元になる。
+ */
+export function previousMonthlyRecord(
+  records: MonitoringMonthlyRecord[],
+  memberId: string,
+  year: number,
+  month: number
+): MonitoringMonthlyRecord | null {
+  const key = year * 100 + month;
+  return (
+    records
+      .filter((r) => r.memberId === memberId && r.year * 100 + r.month < key)
+      .sort((a, b) => (b.year * 100 + b.month) - (a.year * 100 + a.month))[0] ?? null
+  );
+}
+
+/** 前回の記録から、評価欄だけを引き写す（目標本文・実施日は引き継がない） */
+export function carryOverAssessments(
+  prev: MonitoringMonthlyRecord
+): Pick<MonitoringMonthlyRecord, 'longTerm' | 'shortTerm'> {
+  const pick = (a: MonitoringGoalAssessment = {}): MonitoringGoalAssessment => ({
+    periodFrom: a.periodFrom,
+    periodTo: a.periodTo,
+    implementation: a.implementation,
+    achievement: a.achievement,
+    satisfaction: a.satisfaction,
+    direction: a.direction,
+    reason: a.reason,
+  });
+  return { longTerm: pick(prev.longTerm), shortTerm: pick(prev.shortTerm) };
+}
+
+/** 目標の期間を評価欄の期間へ写す（未設定なら空のまま） */
+export function periodFromGoal(
+  term: { startDate?: string; endDate?: string } | null
+): { periodFrom?: string; periodTo?: string } {
+  if (!term) return {};
+  return {
+    periodFrom: (term.startDate ?? '').trim() || undefined,
+    periodTo: (term.endDate ?? '').trim() || undefined,
+  };
 }
