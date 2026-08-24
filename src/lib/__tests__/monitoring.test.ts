@@ -286,6 +286,7 @@ describe('M-12 保存とマイグレーション', () => {
     selectedIds: [], departTime: '08:00', vehicleId: 'car-a',
     dayPlan: null, activeRouteIndex: 0, manualOrder: null,
     history: [], supportRecords: [], monitoringRecords: [base()],
+    monitoringGoalTerms: [], monitoringMonthly: [],
   };
 
   it('モニタリング記録を保存・読み出しできる', async () => {

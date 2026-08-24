@@ -6,6 +6,7 @@ import RouteCreate from './pages/RouteCreate';
 import RouteResult from './pages/RouteResult';
 import FacilitySettings from './pages/FacilitySettings';
 import SupportRecord from './pages/SupportRecord';
+import Monitoring from './pages/Monitoring';
 import Help from './pages/Help';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/result" element={<RouteResult />} />
         <Route path="/facility" element={<FacilitySettings />} />
         <Route path="/support/:memberId" element={<SupportRecord />} />
+        <Route path="/monitoring/:memberId" element={<Monitoring />} />
         <Route path="/help" element={<Help />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

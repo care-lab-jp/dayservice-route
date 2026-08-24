@@ -3,6 +3,9 @@ import type { Member } from '../types';
 import NumberInput from '../components/NumberInput';
 import HelpLink from '../components/HelpLink';
 import { HELP_ANCHORS } from '../lib/helpContent';
+import {
+  KANA_ROWS, countByRow, filterByRow, sortByReading, type KanaRow,
+} from '../lib/kana';
 import { isValidZip, normalizeZip, tryLookupPostalCode } from '../lib/postalCode';
 import { Link } from 'react-router-dom';
 import { newMemberId, useAppStore } from '../store/useAppStore';
@@ -12,7 +15,7 @@ import type { GeocodeCandidate } from '../lib/travelProvider';
 import { clearMatrixCache } from '../lib/planner';
 
 const empty = (): Member => ({
-  id: newMemberId(), name: '', postalCode: '', address: '',
+  id: newMemberId(), name: '', kana: '', postalCode: '', address: '',
   lat: 34.815, lng: 134.685,
   pickupFrom: '08:10', pickupTo: '08:50',
   dropoffFrom: '16:00', dropoffTo: '16:45',
@@ -28,6 +31,12 @@ export default function Members() {
   const [geoMsg, setGeoMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [geoCandidates, setGeoCandidates] = useState<GeocodeCandidate[]>([]);
   const [zipBusy, setZipBusy] = useState(false);
+  const [kanaRow, setKanaRow] = useState<KanaRow | null>(null);
+
+  // あいうえお順に並べ、選んだ行だけを表示する
+  const sortedMembers = sortByReading(members);
+  const shownMembers = filterByRow(sortedMembers, kanaRow);
+  const rowCounts = countByRow(members);
   const { dayPlan, supportRecordsOf } = useAppStore();
   const inTodaysRoute = (id: string) =>
     !!dayPlan?.routes.some((r) => r.stops.some((s) => s.memberId === id));
@@ -103,14 +112,60 @@ export default function Members() {
         </div>
       </div>
 
+      {/* 五十音での絞り込み */}
+      <div className="card">
+        <p className="label">名前で絞り込む（あいうえお順）</p>
+        <div className="grid grid-cols-6 sm:flex sm:flex-wrap gap-2">
+          <button onClick={() => setKanaRow(null)}
+            className={
+              'rounded-xl px-3 py-3 text-base sm:text-lg font-bold border-2 ' +
+              (kanaRow === null
+                ? 'bg-accent text-white border-accent'
+                : 'bg-white text-ink border-gray-500 hover:bg-gray-100')
+            }>
+            すべて
+          </button>
+          {KANA_ROWS.map((r) => {
+            const count = rowCounts[r];
+            const on = kanaRow === r;
+            return (
+              <button key={r} onClick={() => setKanaRow(on ? null : r)}
+                disabled={count === 0}
+                title={count === 0 ? 'この行の利用者はいません' : `${count}名`}
+                className={
+                  'rounded-xl px-3 py-3 text-base sm:text-lg font-bold border-2 ' +
+                  (on
+                    ? 'bg-accent text-white border-accent'
+                    : count === 0
+                    ? 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
+                    : 'bg-white text-ink border-gray-500 hover:bg-gray-100')
+                }>
+                {r}
+              </button>
+            );
+          })}
+        </div>
+        {kanaRow && (
+          <p className="text-gray-600 mt-2">
+            「{kanaRow}」行の{shownMembers.length}名を表示しています。
+          </p>
+        )}
+      </div>
+
       <div className="space-y-3">
-        {members.map((m) => (
+        {shownMembers.length === 0 && (
+          <div className="card text-center text-gray-500 text-lg">
+            表示できる利用者がいません。
+          </div>
+        )}
+        {shownMembers.map((m) => (
           <div key={m.id} className="card flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="min-w-[10rem]">
               <p className="text-xl font-bold">
                 {m.name}さん
                 {!m.active && <span className="badge bg-gray-100 text-gray-500 ml-2">無効</span>}
               </p>
+              {m.kana && <p className="text-gray-500">{m.kana}</p>}
               <p className="text-gray-500">〒{m.postalCode} {m.address}</p>
             </div>
             <div className="text-lg">
@@ -124,6 +179,9 @@ export default function Members() {
               </button>
               <Link to={`/support/${m.id}`} className="btn-sub btn-sm flex-1 sm:flex-none">
                 支援記録{supportRecordsOf(m.id).length > 0 ? `（${supportRecordsOf(m.id).length}）` : ''}
+              </Link>
+              <Link to={`/monitoring/${m.id}`} className="btn-sub btn-sm flex-1 sm:flex-none">
+                モニタリング
               </Link>
               <button className="btn-sub btn-sm flex-1 sm:flex-none" onClick={() => startEdit(m)}>編集</button>
               <button className="btn-danger btn-sm flex-1 sm:flex-none"
@@ -150,6 +208,12 @@ export default function Members() {
                 <label className="label">利用者名</label>
                 <input className="field" value={editing.name}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">ふりがな（あいうえお順の並べ替えに使います）</label>
+                <input className="field" placeholder="やまだ たろう"
+                  value={editing.kana ?? ''}
+                  onChange={(e) => setEditing({ ...editing, kana: e.target.value })} />
               </div>
               <div>
                 <label className="label">郵便番号（入力すると住所が入ります）</label>

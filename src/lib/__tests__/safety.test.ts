@@ -129,6 +129,7 @@ describe('T-14〜T-18 バックアップの安全性', () => {
     facility: sampleFacility, members: sampleMembers, vehicles: sampleVehicles,
     selectedIds: [], departTime: '08:00', vehicleId: 'car-a',
     dayPlan: null, activeRouteIndex: 0, manualOrder: null, history: [], supportRecords: [], monitoringRecords: [],
+    monitoringGoalTerms: [], monitoringMonthly: [],
   };
 
   it('T-14 書き出したJSONにAPIキーが含まれない', async () => {

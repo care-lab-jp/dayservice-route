@@ -65,6 +65,11 @@ export interface Member {
   id: string;
   /** 表示名（個人情報。外部APIへは送らない） */
   name: string;
+  /**
+   * ふりがな（あいうえお順の並べ替え・五十音の絞り込みに使う）。
+   * 送迎の計算には影響しないため、memberFingerprint には含めない。
+   */
+  kana?: string;
   postalCode: string;
   address: string;
   lat: number;
@@ -357,4 +362,64 @@ export interface MonitoringRecord {
   longTermAssessment?: MonitoringGoalAssessment;
   /** 短期目標の評価欄 */
   shortTermAssessment?: MonitoringGoalAssessment;
+}
+
+/* ==================================================================
+ * 月次モニタリング（v0.6.0で追加）
+ * 添付の様式「モニタリング報告（通所）」に合わせた、月ごとの記録。
+ * 既存の MonitoringRecord（期間ごとの記録）とは別に持つ。
+ * Member 型の指紋には含めないため、送迎表の鮮度には影響しない。
+ * ================================================================== */
+
+/** 目標の種別 */
+export type MonitoringGoalKind = 'long' | 'short';
+
+/**
+ * 期間つきの目標。期間の途中で目標が変わる場合は、新しい期間の目標を追加する。
+ * 過去の目標は書き換えず残す（履歴）。
+ */
+export interface MonitoringGoalTerm {
+  goalTermId: string;
+  memberId: string;
+  kind: MonitoringGoalKind;
+  /** 目標の本文 */
+  text: string;
+  /** 適用開始日（YYYY-MM-DD） */
+  startDate: string;
+  /** 適用終了日（YYYY-MM-DD）。未定なら空文字 */
+  endDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 1か月ぶんのモニタリング記録。
+ * 作成時点の目標を写して保存するため、あとから目標を変えても過去の月は変わらない。
+ */
+export interface MonitoringMonthlyRecord {
+  monthlyId: string;
+  memberId: string;
+  /** 西暦 */
+  year: number;
+  /** 1〜12 */
+  month: number;
+
+  /** モニタリング実施日（YYYY-MM-DD） */
+  implementedOn?: string;
+  /** モニタリング実施者（この記録に保存する） */
+  monitorName?: string;
+
+  /** 長期目標・短期目標それぞれの評価欄（様式の4列に対応） */
+  longTerm: MonitoringGoalAssessment;
+  shortTerm: MonitoringGoalAssessment;
+
+  /** 記録した時点の目標本文（あとから目標を変えても変わらない） */
+  longGoalText?: string;
+  shortGoalText?: string;
+  /** 記録した時点の目標ID（追跡用） */
+  longGoalTermId?: string;
+  shortGoalTermId?: string;
+
+  createdAt: string;
+  updatedAt: string;
 }

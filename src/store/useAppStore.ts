@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
-  DayPlan, Facility, Member, MonitoringRecord, RouteHistoryEntry, RoutePlan, SupportRecord, Vehicle,
+  DayPlan, Facility, Member, MonitoringGoalTerm, MonitoringMonthlyRecord, MonitoringRecord,
+  RouteHistoryEntry, RoutePlan, SupportRecord, Vehicle,
 } from '../types';
 import { sampleFacility, sampleMembers, sampleVehicles } from '../data/sampleData';
 import { activeStore } from '../lib/storage';
@@ -29,6 +30,10 @@ interface AppState {
   supportRecords: SupportRecord[];
   /** モニタリング記録（利用者ごと・複数件） */
   monitoringRecords: MonitoringRecord[];
+  /** 期間つきの目標（履歴として残す） */
+  monitoringGoalTerms: MonitoringGoalTerm[];
+  /** 月次のモニタリング記録 */
+  monitoringMonthly: MonitoringMonthlyRecord[];
 
   setFacility: (f: Partial<Facility>) => void;
   addMember: (m: Member) => void;
@@ -55,6 +60,11 @@ interface AppState {
   updateMonitoringRecord: (id: string, patch: Partial<MonitoringRecord>) => void;
   removeMonitoringRecord: (id: string) => void;
   monitoringRecordsOf: (memberId: string) => MonitoringRecord[];
+  addGoalTerm: (t: MonitoringGoalTerm) => void;
+  updateGoalTerm: (id: string, patch: Partial<MonitoringGoalTerm>) => void;
+  removeGoalTerm: (id: string) => void;
+  saveMonthly: (r: MonitoringMonthlyRecord) => void;
+  removeMonthly: (id: string) => void;
   /** 作成した計画を履歴へ積む */
   pushHistory: (p: DayPlan) => void;
   /** 同じ利用者構成の直近の履歴を探す（前回ルートの再利用・比較用） */
@@ -68,6 +78,8 @@ export const newMemberId = () => 'm-' + Math.random().toString(36).slice(2, 9);
 export const newVehicleId = () => 'car-' + Math.random().toString(36).slice(2, 9);
 export const newRecordId = () => 'rec-' + Math.random().toString(36).slice(2, 10);
 export const newMonitoringId = () => 'mon-' + Math.random().toString(36).slice(2, 10);
+export const newGoalTermId = () => 'goal-' + Math.random().toString(36).slice(2, 10);
+export const newMonthlyId = () => 'mm-' + Math.random().toString(36).slice(2, 10);
 
 const sampleState = () => ({
   facility: { ...sampleFacility, tenantId: useTenantStore.getState().currentId },
@@ -83,6 +95,8 @@ const sampleState = () => ({
   notice: null as string | null,
   supportRecords: [] as SupportRecord[],
   monitoringRecords: [] as MonitoringRecord[],
+  monitoringGoalTerms: [] as MonitoringGoalTerm[],
+  monitoringMonthly: [] as MonitoringMonthlyRecord[],
 });
 
 export const useAppStore = create<AppState>()(
@@ -161,6 +175,32 @@ export const useAppStore = create<AppState>()(
         set((s) => ({
           monitoringRecords: s.monitoringRecords.filter((r) => r.monitoringRecordId !== id),
         })),
+      addGoalTerm: (t) => set((s) => ({ monitoringGoalTerms: [...s.monitoringGoalTerms, t] })),
+      updateGoalTerm: (id, patch) =>
+        set((s) => ({
+          monitoringGoalTerms: s.monitoringGoalTerms.map((t) =>
+            t.goalTermId === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t
+          ),
+        })),
+      removeGoalTerm: (id) =>
+        set((s) => ({
+          monitoringGoalTerms: s.monitoringGoalTerms.filter((t) => t.goalTermId !== id),
+        })),
+
+      /** 同じ利用者・年・月の記録があれば置き換え、無ければ追加する */
+      saveMonthly: (r) =>
+        set((s) => {
+          const i = s.monitoringMonthly.findIndex(
+            (x) => x.memberId === r.memberId && x.year === r.year && x.month === r.month
+          );
+          const next = s.monitoringMonthly.slice();
+          if (i >= 0) next[i] = { ...r, updatedAt: new Date().toISOString() };
+          else next.push(r);
+          return { monitoringMonthly: next };
+        }),
+      removeMonthly: (id) =>
+        set((s) => ({ monitoringMonthly: s.monitoringMonthly.filter((x) => x.monthlyId !== id) })),
+
       monitoringRecordsOf: (memberId) =>
         get().monitoringRecords
           .filter((r) => r.memberId === memberId)
@@ -218,12 +258,14 @@ export const useAppStore = create<AppState>()(
           notice: null,
           supportRecords: [],
           monitoringRecords: [],
+          monitoringGoalTerms: [],
+          monitoringMonthly: [],
         }),
     }),
     {
       // ★テナント（施設）ごとに保存先を分離する
       name: appStorageKey(useTenantStore.getState().currentId),
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => activeStore as Storage),
       migrate: (state) => {
         // v1（単一ルート保持）からの移行：作り直しでよいので計画だけ破棄
@@ -236,6 +278,8 @@ export const useAppStore = create<AppState>()(
           history: s.history ?? [],
           supportRecords: s.supportRecords ?? [],
           monitoringRecords: s.monitoringRecords ?? [],
+          monitoringGoalTerms: s.monitoringGoalTerms ?? [],
+          monitoringMonthly: s.monitoringMonthly ?? [],
         } as AppState;
       },
       partialize: (s) => ({
@@ -251,6 +295,8 @@ export const useAppStore = create<AppState>()(
         history: s.history,
         supportRecords: s.supportRecords,
         monitoringRecords: s.monitoringRecords,
+        monitoringGoalTerms: s.monitoringGoalTerms,
+        monitoringMonthly: s.monitoringMonthly,
       }),
     }
   )
@@ -267,6 +313,7 @@ export async function exportCurrentTenant(options?: ExportOptions): Promise<stri
     dayPlan: s.dayPlan, activeRouteIndex: s.activeRouteIndex,
     manualOrder: s.manualOrder, history: s.history,
     supportRecords: s.supportRecords, monitoringRecords: s.monitoringRecords,
+    monitoringGoalTerms: s.monitoringGoalTerms, monitoringMonthly: s.monitoringMonthly,
   });
   return repository.exportJson(id, options);
 }
