@@ -14,7 +14,7 @@ import HelpLink from '../components/HelpLink';
 import { HELP_ANCHORS } from '../lib/helpContent';
 import {
   ACHIEVEMENT_OPTIONS, DIRECTION_OPTIONS, IMPLEMENTATION_OPTIONS, SATISFACTION_OPTIONS,
-} from '../lib/monitoringReport';
+} from '../lib/monitoringOptions';
 import {
   MONTHS, availableYears, carryOverAssessments, findMonthly, goalForMonth, goalHistory,
   isEmptyMonthly, monitorNameSuggestions, monthLabel, monthsWithData, periodFromGoal,

@@ -319,55 +319,10 @@ export interface MonitoringGoalAssessment {
   direction?: MonitoringDirection;
 }
 
-export interface MonitoringRecord {
-  monitoringRecordId: string;
-  memberId: string;
-  createdAt: string;
-  updatedAt: string;
-
-  /** モニタリング期間（YYYY-MM-DD）。未入力なら空文字 */
-  periodFrom: string;
-  periodTo: string;
-
-  /** 長期目標・短期目標（職員が入力。アプリは推測しない） */
-  longTermGoal: string;
-  shortTermGoal: string;
-
-  /** 目標に対する評価（未選択なら undefined） */
-  longTermEvaluation?: GoalEvaluation;
-  shortTermEvaluation?: GoalEvaluation;
-  longTermComment?: string;
-  shortTermComment?: string;
-
-  /** 反映元にした支援記録のID（あれば） */
-  sourceSupportRecordId?: string;
-  /** 反映した時点の支援記録の内容（あとから支援記録が変わっても記録は保持される） */
-  checkedItems: string[];
-  baseline?: SupportMeasures;
-  current?: SupportMeasures;
-
-  /** 今後の支援方針・総合コメント（職員が入力） */
-  policy?: string;
-  overallComment?: string;
-
-  generatedText: string;
-  editedText?: string;
-
-  /* --- 提出様式「モニタリング報告」用（v0.5.3で追加・すべて任意） --- */
-  /** モニタリング実施日（YYYY-MM-DD） */
-  monitoringDate?: string;
-  /** モニタリング実施者 */
-  monitorName?: string;
-  /** 長期目標の評価欄 */
-  longTermAssessment?: MonitoringGoalAssessment;
-  /** 短期目標の評価欄 */
-  shortTermAssessment?: MonitoringGoalAssessment;
-}
 
 /* ==================================================================
  * 月次モニタリング（v0.6.0で追加）
  * 添付の様式「モニタリング報告（通所）」に合わせた、月ごとの記録。
- * 既存の MonitoringRecord（期間ごとの記録）とは別に持つ。
  * Member 型の指紋には含めないため、送迎表の鮮度には影響しない。
  * ================================================================== */
 

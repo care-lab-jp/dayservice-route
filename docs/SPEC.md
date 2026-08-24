@@ -4,7 +4,7 @@
 |---|---|
 | 文書種別 | 詳細設計仕様書（開発者向け） |
 | 対象システム | デイサービス送迎ルート作成アプリ（`dayservice-route`） |
-| バージョン | **0.6.0**（月次モニタリング・利用者検索） |
+| バージョン | **0.6.1**（月次モニタリングへ一本化） |
 | 最終更新 | 2026-08-09 |
 | 対象読者 | 本アプリを改修・保守する開発者 |
 | 併読 | `CHANGELOG.md` / `docs/REVIEW.md`（v0.4.0レビュー）/ `docs/REVIEW-2.md`（現場事故レビュー） |
@@ -156,7 +156,7 @@ dayservice-route/
    │  ├─ freshness.ts        ★送迎表の鮮度判定（READY / STALE / OUTDATED）
    │  ├─ planner.ts          キャッシュ・車両割当・DayPlan生成・並べ替えガード
    │  └─ __tests__/          シナリオテスト（vitest, 83件）
-   ├─ components/  Layout.tsx / MapView.tsx / NumberInput.tsx / MonitoringPanel.tsx
+   ├─ components/  Layout.tsx / MapView.tsx / NumberInput.tsx
 │               HelpLink.tsx / FirstRunGuide.tsx
    └─ pages/       Dashboard / RouteCreate / RouteResult / Members / FacilitySettings
 ```

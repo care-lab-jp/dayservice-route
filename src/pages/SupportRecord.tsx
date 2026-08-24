@@ -9,7 +9,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { newRecordId, useAppStore } from '../store/useAppStore';
-import MonitoringPanel from '../components/MonitoringPanel';
 import HelpLink from '../components/HelpLink';
 import { HELP_ANCHORS } from '../lib/helpContent';
 import { buildSupportText, displayTextOf } from '../lib/supportText';
@@ -45,7 +44,6 @@ export default function SupportRecord() {
   const [text, setText] = useState<string | null>(null);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [tab, setTab] = useState<'support' | 'monitoring'>('support');
 
   if (!member) {
     return (
@@ -138,6 +136,9 @@ export default function SupportRecord() {
             <button className="btn-sub btn-sm flex-1 sm:flex-none" onClick={() => navigate('/members')}>
               利用者管理へ戻る
             </button>
+            <Link to={`/monitoring/${member.id}`} className="btn-sub btn-sm flex-1 sm:flex-none">
+              モニタリングへ
+            </Link>
             {(text || checked.length > 0) && (
               <button className="btn-sub btn-sm flex-1 sm:flex-none" onClick={startNew}>
                 新しい記録にする
@@ -151,25 +152,6 @@ export default function SupportRecord() {
         </p>
       </div>
 
-      {/* 支援記録 / モニタリング の切替 */}
-      <div className="grid grid-cols-2 gap-2">
-        {([['support', '支援記録'], ['monitoring', 'モニタリング']] as const).map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={
-              'rounded-xl px-4 py-3 text-base sm:text-lg font-bold border-2 ' +
-              (tab === key
-                ? 'bg-accent text-white border-accent'
-                : 'bg-white text-ink border-gray-500 hover:bg-gray-100')
-            }>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'monitoring' ? (
-        <MonitoringPanel member={member} />
-      ) : (
-      <>
       {/* チェック項目 */}
       {CATEGORY_ORDER.map((cat) => (
         <div key={cat} className="card">
@@ -308,12 +290,9 @@ export default function SupportRecord() {
         )}
       </div>
 
-      </>
-      )}
-
       <div className="card">
         <p className="text-gray-600">
-          支援記録・モニタリング記録は、利用者の氏名とともに<strong>この端末のブラウザ内にのみ保存</strong>されます。
+          支援記録は、利用者の氏名とともに<strong>この端末のブラウザ内にのみ保存</strong>されます。
           外部のサービスへ送信されることはありません
           （文章の作成も Excel の書き出しも、この端末の中だけで行っています）。
           バックアップの書き出しでは、既定でこれらの記録を含めません。

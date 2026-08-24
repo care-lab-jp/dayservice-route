@@ -24,7 +24,7 @@ import type {
 } from '../types';
 import {
   ACHIEVEMENT_OPTIONS, DIRECTION_OPTIONS, IMPLEMENTATION_OPTIONS, SATISFACTION_OPTIONS,
-} from './monitoringReport';
+} from './monitoringOptions';
 import { parseDate, sheetNameOf } from './monitoringYear';
 
 /* ---------------- 原本の文言（空欄時はこの表記のまま） ---------------- */

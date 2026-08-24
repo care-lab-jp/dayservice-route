@@ -16,7 +16,7 @@
  *   Supabase  : app_data テーブル + RLS: tenant_id = auth.jwt() ->> 'tenant_id'
  */
 import type {
-  DayPlan, Facility, Member, MonitoringGoalTerm, MonitoringMonthlyRecord, MonitoringRecord,
+  DayPlan, Facility, Member, MonitoringGoalTerm, MonitoringMonthlyRecord,
   RouteHistoryEntry, SupportRecord, Vehicle,
 } from '../types';
 import { activeStore } from './storage';
@@ -36,8 +36,6 @@ export interface PersistedAppData {
   history: RouteHistoryEntry[];
   /** 支援記録（要配慮情報を含むため、書き出しは既定で除外） */
   supportRecords: SupportRecord[];
-  /** モニタリング記録（同上） */
-  monitoringRecords: MonitoringRecord[];
   /** 期間つきの目標（同上） */
   monitoringGoalTerms: MonitoringGoalTerm[];
   /** 月次モニタリング（同上） */
@@ -67,7 +65,7 @@ export interface TenantRepository {
   undoImport(tenantId: string): Promise<PersistedAppData | null>;
 }
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** 取り込み時の検証エラー（画面で分岐できるようコード付き） */
 export type ImportErrorCode =
@@ -139,9 +137,6 @@ function validate(data: unknown): asserts data is PersistedAppData {
   if (d.supportRecords !== undefined && !Array.isArray(d.supportRecords)) {
     throw new ImportError('INVALID_DATA', '支援記録の形式が不正です');
   }
-  if (d.monitoringRecords !== undefined && !Array.isArray(d.monitoringRecords)) {
-    throw new ImportError('INVALID_DATA', 'モニタリング記録の形式が不正です');
-  }
   if (d.monitoringGoalTerms !== undefined && !Array.isArray(d.monitoringGoalTerms)) {
     throw new ImportError('INVALID_DATA', '目標の履歴の形式が不正です');
   }
@@ -185,7 +180,6 @@ export class LocalTenantRepository implements TenantRepository {
           manualOrder: null,
           history: options?.includeHistory ? data.history : [],
           supportRecords: options?.includeSupportRecords ? (data.supportRecords ?? []) : [],
-          monitoringRecords: options?.includeSupportRecords ? (data.monitoringRecords ?? []) : [],
           monitoringGoalTerms: options?.includeSupportRecords ? (data.monitoringGoalTerms ?? []) : [],
           monitoringMonthly: options?.includeSupportRecords ? (data.monitoringMonthly ?? []) : [],
         }
@@ -266,7 +260,6 @@ export class LocalTenantRepository implements TenantRepository {
       manualOrder: null,
       history: Array.isArray(data.history) ? data.history : [],
       supportRecords: Array.isArray(data.supportRecords) ? data.supportRecords : [],
-      monitoringRecords: Array.isArray(data.monitoringRecords) ? data.monitoringRecords : [],
       monitoringGoalTerms: Array.isArray(data.monitoringGoalTerms) ? data.monitoringGoalTerms : [],
       monitoringMonthly: Array.isArray(data.monitoringMonthly) ? data.monitoringMonthly : [],
     };

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
-  DayPlan, Facility, Member, MonitoringGoalTerm, MonitoringMonthlyRecord, MonitoringRecord,
+  DayPlan, Facility, Member, MonitoringGoalTerm, MonitoringMonthlyRecord,
   RouteHistoryEntry, RoutePlan, SupportRecord, Vehicle,
 } from '../types';
 import { sampleFacility, sampleMembers, sampleVehicles } from '../data/sampleData';
@@ -28,8 +28,6 @@ interface AppState {
   notice: string | null;
   /** 支援記録（利用者ごと・複数件を履歴として保持） */
   supportRecords: SupportRecord[];
-  /** モニタリング記録（利用者ごと・複数件） */
-  monitoringRecords: MonitoringRecord[];
   /** 期間つきの目標（履歴として残す） */
   monitoringGoalTerms: MonitoringGoalTerm[];
   /** 月次のモニタリング記録 */
@@ -56,10 +54,6 @@ interface AppState {
   updateSupportRecord: (recordId: string, patch: Partial<SupportRecord>) => void;
   removeSupportRecord: (recordId: string) => void;
   supportRecordsOf: (memberId: string) => SupportRecord[];
-  addMonitoringRecord: (r: MonitoringRecord) => void;
-  updateMonitoringRecord: (id: string, patch: Partial<MonitoringRecord>) => void;
-  removeMonitoringRecord: (id: string) => void;
-  monitoringRecordsOf: (memberId: string) => MonitoringRecord[];
   addGoalTerm: (t: MonitoringGoalTerm) => void;
   updateGoalTerm: (id: string, patch: Partial<MonitoringGoalTerm>) => void;
   removeGoalTerm: (id: string) => void;
@@ -94,7 +88,6 @@ const sampleState = () => ({
   history: [] as RouteHistoryEntry[],
   notice: null as string | null,
   supportRecords: [] as SupportRecord[],
-  monitoringRecords: [] as MonitoringRecord[],
   monitoringGoalTerms: [] as MonitoringGoalTerm[],
   monitoringMonthly: [] as MonitoringMonthlyRecord[],
 });
@@ -162,19 +155,6 @@ export const useAppStore = create<AppState>()(
           .filter((r) => r.memberId === memberId)
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
 
-      addMonitoringRecord: (r) => set((s) => ({ monitoringRecords: [r, ...s.monitoringRecords] })),
-      updateMonitoringRecord: (id, patch) =>
-        set((s) => ({
-          monitoringRecords: s.monitoringRecords.map((r) =>
-            r.monitoringRecordId === id
-              ? { ...r, ...patch, updatedAt: new Date().toISOString() }
-              : r
-          ),
-        })),
-      removeMonitoringRecord: (id) =>
-        set((s) => ({
-          monitoringRecords: s.monitoringRecords.filter((r) => r.monitoringRecordId !== id),
-        })),
       addGoalTerm: (t) => set((s) => ({ monitoringGoalTerms: [...s.monitoringGoalTerms, t] })),
       updateGoalTerm: (id, patch) =>
         set((s) => ({
@@ -200,13 +180,6 @@ export const useAppStore = create<AppState>()(
         }),
       removeMonthly: (id) =>
         set((s) => ({ monitoringMonthly: s.monitoringMonthly.filter((x) => x.monthlyId !== id) })),
-
-      monitoringRecordsOf: (memberId) =>
-        get().monitoringRecords
-          .filter((r) => r.memberId === memberId)
-          .sort((a, b) =>
-            (b.periodTo || b.createdAt).localeCompare(a.periodTo || a.createdAt)
-          ),
 
       pushHistory: (p) =>
         set((s) => {
@@ -257,7 +230,6 @@ export const useAppStore = create<AppState>()(
           history: [],
           notice: null,
           supportRecords: [],
-          monitoringRecords: [],
           monitoringGoalTerms: [],
           monitoringMonthly: [],
         }),
@@ -265,19 +237,20 @@ export const useAppStore = create<AppState>()(
     {
       // ★テナント（施設）ごとに保存先を分離する
       name: appStorageKey(useTenantStore.getState().currentId),
-      version: 6,
+      version: 7,
       storage: createJSONStorage(() => activeStore as Storage),
       migrate: (state) => {
         // v1（単一ルート保持）からの移行：作り直しでよいので計画だけ破棄
-        const s = state as Partial<AppState> & { plan?: unknown };
+        const s = state as Partial<AppState> & { plan?: unknown; monitoringRecords?: unknown };
         if (s && 'plan' in s) delete s.plan;
+        // v0.6.1で廃止した旧モニタリング記録は読み込まない
+        if (s && 'monitoringRecords' in s) delete s.monitoringRecords;
         return {
           ...s,
           dayPlan: null,
           activeRouteIndex: 0,
           history: s.history ?? [],
           supportRecords: s.supportRecords ?? [],
-          monitoringRecords: s.monitoringRecords ?? [],
           monitoringGoalTerms: s.monitoringGoalTerms ?? [],
           monitoringMonthly: s.monitoringMonthly ?? [],
         } as AppState;
@@ -294,7 +267,6 @@ export const useAppStore = create<AppState>()(
         manualOrder: s.manualOrder,
         history: s.history,
         supportRecords: s.supportRecords,
-        monitoringRecords: s.monitoringRecords,
         monitoringGoalTerms: s.monitoringGoalTerms,
         monitoringMonthly: s.monitoringMonthly,
       }),
@@ -312,7 +284,7 @@ export async function exportCurrentTenant(options?: ExportOptions): Promise<stri
     selectedIds: s.selectedIds, departTime: s.departTime, vehicleId: s.vehicleId,
     dayPlan: s.dayPlan, activeRouteIndex: s.activeRouteIndex,
     manualOrder: s.manualOrder, history: s.history,
-    supportRecords: s.supportRecords, monitoringRecords: s.monitoringRecords,
+    supportRecords: s.supportRecords,
     monitoringGoalTerms: s.monitoringGoalTerms, monitoringMonthly: s.monitoringMonthly,
   });
   return repository.exportJson(id, options);
