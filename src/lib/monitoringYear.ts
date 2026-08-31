@@ -192,18 +192,43 @@ export function monitorNameSuggestions(
   return out;
 }
 
-/** 年の候補（記録がある年＋今年） */
+/**
+ * 年の候補。
+ * 記録がある年に加えて、前年から5年先までを選べるようにする
+ * （翌年度以降の計画を先に入れられるように）。
+ */
 export function availableYears(
   records: MonitoringMonthlyRecord[],
   memberId: string,
-  today = new Date()
+  today = new Date(),
+  range: { past?: number; future?: number } = {}
 ): number[] {
+  const past = range.past ?? 1;
+  const future = range.future ?? 5;
+  const base = today.getFullYear();
   const years = new Set<number>(
     records.filter((r) => r.memberId === memberId).map((r) => r.year)
   );
-  years.add(today.getFullYear());
+  for (let y = base - past; y <= base + future; y++) years.add(y);
   return [...years].sort((a, b) => b - a);
 }
+
+/** その月の末日（YYYY-MM-DD）。モニタリング実施日の初期値に使う */
+export function lastDayOfMonth(year: number, month: number): string {
+  return toIso(year, month, daysInMonth(year, month));
+}
+
+/**
+ * 新しい月を開いたときの評価欄の初期値。
+ * 現場でほとんどこの組み合わせになるため、あらかじめ選んでおく。
+ * （もちろん画面で変更できる）
+ */
+export const DEFAULT_ASSESSMENT = {
+  implementation: '一部実施できた',
+  achievement: '一部達成',
+  satisfaction: 'ある程度満足',
+  direction: 'サービスを継続',
+} as const;
 
 /**
  * 指定の年月より前で、いちばん近い月の記録を返す。

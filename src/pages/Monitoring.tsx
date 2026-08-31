@@ -9,21 +9,20 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { newGoalTermId, newMonthlyId, useAppStore } from '../store/useAppStore';
+import { newMonthlyId, useAppStore } from '../store/useAppStore';
+import GoalTermsEditor from '../components/GoalTermsEditor';
 import HelpLink from '../components/HelpLink';
 import { HELP_ANCHORS } from '../lib/helpContent';
 import {
   ACHIEVEMENT_OPTIONS, DIRECTION_OPTIONS, IMPLEMENTATION_OPTIONS, SATISFACTION_OPTIONS,
 } from '../lib/monitoringOptions';
 import {
-  MONTHS, availableYears, carryOverAssessments, findMonthly, goalForMonth, goalHistory,
-  isEmptyMonthly, monitorNameSuggestions, monthLabel, monthsWithData, periodFromGoal,
-  previousMonthlyRecord, shortTermEndDate,
+  DEFAULT_ASSESSMENT, MONTHS, availableYears, carryOverAssessments, findMonthly,
+  goalForMonth, isEmptyMonthly, lastDayOfMonth, monitorNameSuggestions, monthLabel,
+  monthsWithData, periodFromGoal, previousMonthlyRecord,
 } from '../lib/monitoringYear';
 import { buildMonitoringYearWorkbook } from '../lib/monitoringWorkbook';
-import type {
-  MonitoringGoalAssessment, MonitoringGoalKind, MonitoringMonthlyRecord,
-} from '../types';
+import type { MonitoringGoalAssessment, MonitoringMonthlyRecord } from '../types';
 
 const emptyAssessment = (): MonitoringGoalAssessment => ({});
 
@@ -32,7 +31,7 @@ export default function Monitoring() {
   const navigate = useNavigate();
   const {
     members, facility, monitoringGoalTerms, monitoringMonthly,
-    addGoalTerm, updateGoalTerm, removeGoalTerm, saveMonthly,
+    saveMonthly,
   } = useAppStore();
 
   const member = members.find((m) => m.id === memberId);
@@ -69,10 +68,12 @@ export default function Monitoring() {
       setDraft({
         monthlyId: newMonthlyId(),
         memberId, year, month,
-        implementedOn: '', monitorName: monitorCandidates[0] ?? '',
-        // 期間は上部で登録した目標から引用する
-        longTerm: { ...emptyAssessment(), ...periodFromGoal(longGoal) },
-        shortTerm: { ...emptyAssessment(), ...periodFromGoal(shortGoal) },
+        // 実施日は、その月の末日を初期値にする
+        implementedOn: lastDayOfMonth(year, month),
+        monitorName: monitorCandidates[0] ?? '',
+        // 期間は上部で登録した目標から引用し、評価はよく使う組み合わせを初期選択にする
+        longTerm: { ...emptyAssessment(), ...DEFAULT_ASSESSMENT, ...periodFromGoal(longGoal) },
+        shortTerm: { ...emptyAssessment(), ...DEFAULT_ASSESSMENT, ...periodFromGoal(shortGoal) },
         longGoalText: longGoal?.text ?? '', shortGoalText: shortGoal?.text ?? '',
         longGoalTermId: longGoal?.goalTermId, shortGoalTermId: shortGoal?.goalTermId,
         createdAt: '', updatedAt: '',
@@ -179,105 +180,6 @@ export default function Monitoring() {
 
   /* ---------------- 目標の編集 ---------------- */
 
-  const GoalEditor = ({ kind, label }: { kind: MonitoringGoalKind; label: string }) => {
-    const history = goalHistory(monitoringGoalTerms, memberId, kind);
-    const current = kind === 'long' ? longGoal : shortGoal;
-    const [text, setText] = useState('');
-    const [start, setStart] = useState('');
-    const [end, setEnd] = useState('');
-
-    const onStart = (v: string) => {
-      setStart(v);
-      // 短期目標は開始日から6か月間で終了日を自動計算（手動で変更できる）
-      if (kind === 'short' && v) setEnd(shortTermEndDate(v));
-    };
-
-    const add = () => {
-      if (!text.trim()) { alert('目標の内容を入力してください。'); return; }
-      if (!start) { alert('適用開始日を入力してください。'); return; }
-      const now = new Date().toISOString();
-      // 直前の目標の終了日が空なら、新しい目標の開始日の前日で締める
-      const prev = history.find((t) => !t.endDate?.trim() && t.startDate < start);
-      if (prev) {
-        const d = new Date(start);
-        d.setDate(d.getDate() - 1);
-        const iso = d.toISOString().slice(0, 10);
-        updateGoalTerm(prev.goalTermId, { endDate: iso });
-      }
-      addGoalTerm({
-        goalTermId: newGoalTermId(), memberId, kind,
-        text: text.trim(), startDate: start, endDate: end,
-        createdAt: now, updatedAt: now,
-      });
-      setText(''); setStart(''); setEnd('');
-    };
-
-    return (
-      <div className="rounded-2xl border-2 border-gray-200 p-4 space-y-3">
-        <h4 className="text-lg sm:text-xl font-bold">{label}</h4>
-        <div className={
-          'rounded-xl p-3 ' + (current ? 'bg-accentSoft' : 'bg-gray-100')
-        }>
-          <p className="text-gray-600">{monthLabel(month)}に適用される目標</p>
-          <p className="text-lg font-bold whitespace-pre-line">
-            {current?.text || '（未設定）'}
-          </p>
-          {current && (
-            <p className="text-gray-500">
-              {current.startDate}　〜　{current.endDate || '（終了日未定）'}
-            </p>
-          )}
-        </div>
-
-        <details>
-          <summary className="cursor-pointer text-lg font-bold">
-            目標を追加・変更する（履歴 {history.length}件）
-          </summary>
-          <div className="mt-3 space-y-3">
-            <div>
-              <label className="label">目標の内容</label>
-              <textarea className="field min-h-[4rem]" value={text}
-                onChange={(e) => setText(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="label">適用開始日</label>
-                <input className="field" type="date" value={start}
-                  onChange={(e) => onStart(e.target.value)} />
-              </div>
-              <div>
-                <label className="label">
-                  終了日{kind === 'short' && '（開始日から6か月で自動計算・変更可）'}
-                </label>
-                <input className="field" type="date" value={end}
-                  onChange={(e) => setEnd(e.target.value)} />
-              </div>
-            </div>
-            <button className="btn-primary" onClick={add}>この目標を追加する</button>
-
-            {history.length > 0 && (
-              <ul className="space-y-2">
-                {history.map((t) => (
-                  <li key={t.goalTermId} className="rounded-xl border-2 border-gray-200 p-3">
-                    <p className="text-gray-500">
-                      {t.startDate} 〜 {t.endDate || '（終了日未定）'}
-                    </p>
-                    <p className="text-lg whitespace-pre-line">{t.text}</p>
-                    <button className="btn-danger btn-sm mt-2" onClick={() => {
-                      if (confirm('この目標を履歴から削除します。過去に保存した月の記録は変わりません。よろしいですか？')) {
-                        removeGoalTerm(t.goalTermId);
-                      }
-                    }}>削除</button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </details>
-      </div>
-    );
-  };
-
   /* ---------------- 月の評価欄 ---------------- */
 
   const assessmentEditor = (key: 'longTerm' | 'shortTerm', label: string) => {
@@ -361,8 +263,10 @@ export default function Monitoring() {
           期間の途中で目標が変わった場合は、新しい目標を追加してください。
           過去に保存した月の記録は、当時の目標のまま残ります。
         </p>
-        <GoalEditor kind="long" label="長期目標" />
-        <GoalEditor kind="short" label="短期目標" />
+        <GoalTermsEditor memberId={memberId} kind="long" label="長期目標"
+          month={month} current={longGoal} />
+        <GoalTermsEditor memberId={memberId} kind="short" label="短期目標"
+          month={month} current={shortGoal} />
       </div>
 
       {/* 年と月の切り替え */}

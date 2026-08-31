@@ -211,8 +211,13 @@ describe('M-03 月ごとの記録', () => {
     s.saveMonthly(monthly({ year: 2025, month: 4 }));
     s.saveMonthly(monthly({ year: 2026, month: 4 }));
     expect(useAppStore.getState().monitoringMonthly).toHaveLength(2);
-    expect(availableYears(useAppStore.getState().monitoringMonthly, 'm-1', new Date('2026-08-01')))
-      .toEqual([2026, 2025]);
+    // 記録のある年に加えて、前年〜5年先まで選べる
+    const ys = availableYears(useAppStore.getState().monitoringMonthly, 'm-1', new Date('2026-08-01'));
+    expect(ys).toContain(2025);
+    expect(ys).toContain(2026);
+    expect(ys).toContain(2027);
+    expect(ys).toContain(2031);
+    expect(ys[0]).toBe(2031); // 新しい順
   });
 
   it('空の記録を判定できる', () => {
